@@ -5,8 +5,21 @@ import { CosmosBlockOffset } from "./models/cosmwasm/block-offset";
 import {
   CosmwasmWatcherEvent,
   createCosmosBridgeWatcher,
+  createUpdateClientData,
 } from "./cosmos.service";
 import { BridgeParsedData } from "./@types/interfaces/cosmwasm";
+import { Queue } from "bullmq";
+
+const connection = {
+  host: envConfig.REDIS_HOST,
+  port: envConfig.REDIS_PORT,
+};
+
+const tonQueue = new Queue("ton", {
+  connection,
+});
+
+const cosmosQueue = new Queue("cosmos", { connection });
 
 // TODO: may transform to an express app not only worker
 async function main() {
@@ -53,6 +66,28 @@ async function main() {
     CosmwasmWatcherEvent.PARSED_DATA,
     async (data: BridgeParsedData) => {
       const { submitData, submittedTxs } = data;
+      const submitDataQueue = submitData.map((tx) => {
+        return {
+          name: "submitData",
+          data: tx,
+        };
+      });
+      await cosmosQueue.addBulk(submitDataQueue);
+      const updateClientDataPromise = submittedTxs.map((tx) =>
+        createUpdateClientData(envConfig.COSMOS_RPC_URL, tx.height)
+      );
+      const updateClientData = await Promise.all(updateClientDataPromise);
+      const relayDataQueue = updateClientData.map((clientData, i) => {
+        return {
+          name: "relayData",
+          data: {
+            data: submittedTxs[i].data,
+            clientData: clientData,
+            txHash: submittedTxs[i].hash,
+          },
+        };
+      });
+      await tonQueue.addBulk(relayDataQueue);
     }
   );
 }

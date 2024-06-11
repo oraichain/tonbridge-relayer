@@ -2,6 +2,8 @@ import { config } from "dotenv";
 config();
 
 export const envConfig = {
+  REDIS_HOST: process.env.REDIS_HOST || "http://localhost",
+  REDIS_PORT: Number(process.env.REDIS_PORT || 6379),
   MNEMONIC: process.env.MNEMONIC || "",
   COSMOS_RPC_URL: process.env.COSMOS_RPC_URL || "https://rpc.orai.io/",
   SYNC_BLOCK_OFFSET: Number(process.env.SYNC_BLOCK_OFFSET || 20000000),

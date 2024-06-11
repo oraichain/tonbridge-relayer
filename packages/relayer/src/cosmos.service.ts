@@ -14,6 +14,7 @@ import {
   BridgeParsedData,
   ICosmwasmParser,
 } from "./@types/interfaces/cosmwasm";
+import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 
 export const enum BRIDGE_ACTION {
   TRANSFER_TO_TON = "transfer_to_ton",
@@ -160,6 +161,32 @@ export class CosmwasmWatcher<T> extends EventEmitter {
     });
   }
 }
+
+export const createUpdateClientData = async (
+  rpcUrl: string,
+  height: number
+) => {
+  const tendermintClient = await Tendermint34Client.connect(rpcUrl);
+
+  const [
+    {
+      block: { lastCommit },
+    },
+    {
+      block: { header },
+    },
+    { validators },
+  ] = await Promise.all([
+    tendermintClient.block(height + 1),
+    tendermintClient.block(height),
+    tendermintClient.validators({
+      height,
+      per_page: 100,
+    }),
+  ]);
+
+  return { validators, lastCommit, header };
+};
 
 export const createCosmosBridgeWatcher = (
   bridgeWasmAddress: string,
