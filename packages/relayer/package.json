@@ -16,6 +16,7 @@
     "@ton/core": "^0.56.3",
     "@ton/crypto": "^3.2.0",
     "@ton/ton": "^13.11.2",
+    "dotenv": "^16.4.5",
     "duckdb": "^1.0.0",
     "duckdb-async": "^1.0.0"
   }
