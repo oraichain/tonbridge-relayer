@@ -1,6 +1,8 @@
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
+      REDIS_HOST: string;
+      REDIS_PORT: number;
       MNEMONIC: string;
       // SYNC_OPTS
       COSMOS_RPC_URL: string;
