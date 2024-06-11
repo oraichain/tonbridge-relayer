@@ -19,3 +19,9 @@ export type TxWasm = {
     authInfo: AuthInfo;
     signatures: string[];
 };
+
+export type BasicTxInfo = {
+    hash: string;
+    height: number;
+    time?: string;
+  };
