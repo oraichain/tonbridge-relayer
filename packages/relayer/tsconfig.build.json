@@ -4,14 +4,11 @@
         "baseUrl": ".",
         "outDir": "build",
         "declaration": true,
-        "rootDir": ".",
-        "paths": {
-            "@src/*": ["src/*"],
-        }
+        "rootDir": "src",
     },
+    
     "include": [
         "src/**/*.ts",
-        "tests/**/*.ts",
         "@types/**/*.ts"
     ],
     "exclude": [
