@@ -14,8 +14,6 @@ import {
   BridgeParsedData,
   ICosmwasmParser,
 } from "./@types/interfaces/cosmwasm";
-import { DuckDb } from "./duckdb.service";
-import { CosmosBlockOffset } from "./models/cosmwasm/block-offset";
 
 export const enum BRIDGE_ACTION {
   TRANSFER_TO_TON = "transfer_to_ton",
@@ -163,22 +161,12 @@ export class CosmwasmWatcher<T> extends EventEmitter {
   }
 }
 
-export const createCosmosBridgeWatcher = async (
+export const createCosmosBridgeWatcher = (
   bridgeWasmAddress: string,
-  syncDataOpt: SyncDataOptions,
-  dbConnectionString: string
+  syncDataOpt: SyncDataOptions
 ) => {
   const syncData = new SyncData(syncDataOpt);
   const bridgeParser = new CosmwasmBridgeParser(bridgeWasmAddress);
   const cosmwasmWatcher = new CosmwasmWatcher(syncData, bridgeParser);
-  const database = await DuckDb.getInstance(dbConnectionString);
-  const blockOffSet = new CosmosBlockOffset(database);
-  await blockOffSet.mayLoadBlockOffset(syncDataOpt.offset);
-  cosmwasmWatcher.on(CosmwasmWatcherEvent.SYNC_DATA, async (chunk: Txs) => {
-    const { offset: newOffset } = chunk;
-    await blockOffSet.updateBlockOffset(newOffset);
-    console.log("Update new offset at", newOffset);
-  });
-
   return cosmwasmWatcher;
 };
