@@ -9,6 +9,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "declaration": false,
+    "resolveJsonModule": true,
     "outDir": "dist",
     "typeRoots": ["node_modules/@types"],
     "allowJs": true,
