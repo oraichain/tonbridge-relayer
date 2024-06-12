@@ -9,6 +9,7 @@ import {
 } from "./cosmos.service";
 import { BridgeParsedData } from "./@types/interfaces/cosmwasm";
 import { Queue } from "bullmq";
+import { TonWorkerJob } from "./tonWorker";
 
 const connection = {
   host: envConfig.REDIS_HOST,
@@ -79,7 +80,7 @@ async function main() {
       const updateClientData = await Promise.all(updateClientDataPromise);
       const relayDataQueue = updateClientData.map((clientData, i) => {
         return {
-          name: "relayData",
+          name: TonWorkerJob.RelayCosmWasmData,
           data: {
             data: submittedTxs[i].data,
             clientData: clientData,

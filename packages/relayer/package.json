@@ -25,5 +25,8 @@
     "dotenv": "^16.4.5",
     "duckdb": "^1.0.0",
     "duckdb-async": "^1.0.0"
+  },
+  "devDependencies": {
+    "@ton/sandbox": "^0.20.0"
   }
 }
