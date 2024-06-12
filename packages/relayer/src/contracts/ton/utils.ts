@@ -14,6 +14,7 @@ import {
 import { int64FromString, writeVarint64 } from "cosmjs-types/varint";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { BlockId } from "@cosmjs/tendermint-rpc";
+import { TxBodyWasm } from "@src/@types/common";
 
 export type TestClientConfig = {
   id: number;
@@ -38,23 +39,6 @@ export type CanonicalVote = {
   block_id: BlockId;
   timestamp: string;
   chain_id: string;
-};
-
-export type TxBodyWasm = {
-  messages: {
-    typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract";
-    value: MsgExecuteContract;
-  }[];
-  memo: string;
-  timeoutHeight: number;
-  extensionOptions: Any[];
-  nonCriticalExtensionOptions: Any[];
-};
-
-export type TxWasm = {
-  body: TxBodyWasm;
-  authInfo: AuthInfo;
-  signatures: string[];
 };
 
 export const getTimeComponent = (timestampz: string) => {
@@ -358,7 +342,7 @@ export const getMerkleProofs = (leaves: Buffer[], leafData: Buffer) => {
   const leaf = leafHash(leafData);
   let node = lookUp[Buffer.from(leaf).toString("hex")];
   let positions = beginCell();
-  let branch = [];
+  const branch = [];
   let branchCell: Cell | undefined;
   while (node.parent) {
     const isRight = node.parent.right!.value!.equals(node.value!);
@@ -621,12 +605,12 @@ export type Header = {
   last_block_id: BlockId;
 };
 
-export type Commit = {
-  height: string;
-  round: number;
-  block_id: BlockId;
-  signatures: Signature[];
-};
+// export type Commit = {
+//   height: string;
+//   round: number;
+//   block_id: BlockId;
+//   signatures: Signature[];
+// };
 
 export type Signature = {
   block_id_flag: number;
