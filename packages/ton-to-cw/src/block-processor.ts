@@ -1,0 +1,237 @@
+import {
+  TonbridgeBridgeInterface,
+  TonbridgeValidatorInterface,
+} from "@oraichain/tonbridge-contracts-sdk";
+import { UserFriendlyValidator } from "@oraichain/tonbridge-contracts-sdk/build/TonbridgeValidator.types";
+import TonRocks, {
+  ParsedBlock,
+  ValidatorSignature,
+} from "@oraichain/tonbridge-utils";
+import Queue from "queue";
+import { LiteClient } from "ton-lite-client";
+import { Functions, liteServer_BlockData } from "ton-lite-client/dist/schema";
+import TonWeb from "tonweb";
+
+export default class TonBlockProcessor {
+  public keyBlockQueue = new Queue({ results: [] });
+
+  constructor(
+    protected readonly validator: TonbridgeValidatorInterface,
+    protected readonly liteClient: LiteClient,
+    protected readonly tonweb: TonWeb
+  ) {}
+
+  static queryKeyBlock = async (
+    masterChainSeqNo: number,
+    client: LiteClient
+  ) => {
+    let initBlockSeqno = masterChainSeqNo;
+    while (true) {
+      const fullBlock = await client.getFullBlock(initBlockSeqno);
+      const initialBlockInformation = fullBlock.shards.find(
+        (blockRes) => blockRes.seqno === initBlockSeqno
+      );
+      // get block
+      const block = await client.engine.query(Functions.liteServer_getBlock, {
+        kind: "liteServer.getBlock",
+        id: {
+          kind: "tonNode.blockIdExt",
+          ...initialBlockInformation,
+        },
+      });
+
+      const parsedBlock: ParsedBlock = await this.parseBlock(block);
+      if (!parsedBlock.info.key_block) {
+        initBlockSeqno = parsedBlock.info.prev_key_block_seqno;
+        continue;
+      }
+      return {
+        parsedBlock,
+        rawBlockData: block,
+        initialKeyBlockInformation: initialBlockInformation,
+      };
+    }
+  };
+
+  static async parseBlock(block: liteServer_BlockData): Promise<ParsedBlock> {
+    const [rootCell] = await TonRocks.types.Cell.fromBoc(
+      block.data.toString("hex")
+    );
+
+    // Additional check for rootHash
+    const rootHash = Buffer.from(rootCell.hashes[0]).toString("hex");
+    if (rootHash !== block.id.rootHash.toString("hex")) {
+      throw Error("got wrong block or here was a wrong root_hash format");
+    }
+
+    const parsedBlock = TonRocks.bc.BlockParser.parseBlock(rootCell);
+    return parsedBlock;
+  }
+
+  async processKeyBlock() {
+    if (this.keyBlockQueue.length > 0) await this.keyBlockQueue.shift().promise;
+  }
+
+  queryAllValidators = async () => {
+    let validators: UserFriendlyValidator[] = [];
+    let startAfter = undefined;
+    let valCheck = new Set();
+
+    while (true) {
+      const validatorsTemp = await this.validator.getValidators({
+        limit: 30,
+        startAfter,
+      });
+      if (validatorsTemp.length === 0) {
+        break;
+      }
+      validators = validators.concat(validatorsTemp);
+      startAfter = validatorsTemp[validatorsTemp.length - 1].node_id;
+    }
+
+    return validators.filter((val) => {
+      if (valCheck.has(val.node_id)) {
+        return false;
+      }
+      valCheck.add(val.node_id);
+      return true;
+    });
+  };
+
+  queryAllValidatorCandidates = async () => {
+    let candidates: UserFriendlyValidator[] = [];
+    let startAfter = 0;
+
+    while (true) {
+      const candidatesTemp = await this.validator.getCandidatesForValidators({
+        limit: 30,
+        startAfter,
+        order: 0,
+      });
+      if (candidatesTemp.length === 0) {
+        break;
+      }
+      candidates = candidates.concat(candidatesTemp);
+      startAfter = candidates.length;
+    }
+    return candidates;
+  };
+
+  async verifyMasterchainBlock(seqno: number) {
+    console.log("prepare to verify masterchain block: ", seqno);
+    const fullBlock = await this.liteClient.getFullBlock(seqno);
+    const blockId = fullBlock.shards.find(
+      (blockRes) => blockRes.seqno === seqno
+    );
+    const isBlockVerified = await this.validator.isVerifiedBlock({
+      rootHash: blockId.rootHash.toString("hex"),
+    });
+    if (isBlockVerified) return;
+
+    const vdata = await this.getMasterchainBlockValSignatures(seqno);
+    console.log("vdata length: ", vdata.length);
+    const blockHeader = await this.liteClient.getBlockHeader(blockId);
+    const blockInfo = await this.liteClient.engine.query(
+      Functions.liteServer_getBlock,
+      {
+        kind: "liteServer.getBlock",
+        id: {
+          kind: "tonNode.blockIdExt",
+          ...blockId,
+        },
+      }
+    );
+
+    await this.validator.verifyMasterchainBlockByValidatorSignatures({
+      blockHeaderProof: blockHeader.headerProof.toString("hex"),
+      blockBoc: blockInfo.data.toString("hex"),
+      fileHash: blockInfo.id.fileHash.toString("hex"),
+      vdata,
+    });
+    console.log(`verified masterchain block ${blockId.seqno} successfully`);
+  }
+
+  async verifyMasterchainKeyBlock(seqno: number) {
+    console.log("prepare to verify masterchain keyblock: ", seqno);
+    const { rawBlockData } = await TonBlockProcessor.queryKeyBlock(
+      seqno,
+      this.liteClient
+    );
+
+    const isBlockVerified = await this.validator.isVerifiedBlock({
+      rootHash: rawBlockData.id.rootHash.toString("hex"),
+    });
+
+    if (isBlockVerified) return;
+    const boc = rawBlockData.data.toString("hex");
+    await this.validator.prepareNewKeyBlock({ keyblockBoc: boc });
+    const vdata = await this.getMasterchainBlockValSignatures(seqno);
+
+    await this.validator.verifyKeyBlock({
+      rootHash: rawBlockData.id.rootHash.toString("hex"),
+      fileHash: rawBlockData.id.fileHash.toString("hex"),
+      vdata,
+    });
+    console.log(
+      `verified masterchain keyblock ${rawBlockData.id.seqno} successfully`
+    );
+  }
+
+  private async getMasterchainBlockValSignatures(seqno: number) {
+    const valSignatures = (await this.tonweb.provider.send(
+      "getMasterchainBlockSignatures",
+      {
+        seqno,
+      }
+    )) as any;
+    const signatures = valSignatures.signatures as ValidatorSignature[];
+    const vdata = signatures.map((sig) => {
+      const signatureBuffer = Buffer.from(sig.signature, "base64");
+      const r = signatureBuffer.subarray(0, 32);
+      const s = signatureBuffer.subarray(32);
+      return {
+        node_id: Buffer.from(sig.node_id_short, "base64").toString("hex"),
+        r: r.toString("hex"),
+        s: s.toString("hex"),
+      };
+    });
+    return vdata;
+  }
+
+  async verifyShardBlocks(workchain: number, seqno: number, shard: string) {
+    const shardInfo = await this.liteClient.lookupBlockByID({
+      seqno,
+      shard,
+      workchain,
+    });
+
+    const isBlockVerified = await this.validator.isVerifiedBlock({
+      rootHash: shardInfo.id.rootHash.toString("hex"),
+    });
+    if (isBlockVerified) return;
+
+    const shardProof = await this.liteClient.engine.query(
+      Functions.liteServer_getShardBlockProof,
+      {
+        kind: "liteServer.getShardBlockProof",
+        id: {
+          kind: "tonNode.blockIdExt",
+          ...shardInfo.id,
+        },
+      }
+    );
+    const mcBlockRootHash = shardProof.masterchainId.rootHash.toString("hex");
+    await this.validator.verifyShardBlocks({
+      mcBlockRootHash: mcBlockRootHash,
+      shardProofLinks: shardProof.links.map((link) =>
+        link.proof.toString("hex")
+      ),
+    });
+
+    console.log(
+      `verified shard blocks ${JSON.stringify(
+        shardProof.links.map((link) => link.id.seqno)
+      )} successfully`
+    );
+  }
+}
