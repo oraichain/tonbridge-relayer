@@ -35,11 +35,6 @@ export default class TonTxProcessor {
         continue;
       }
       const tempTransactions: any[] = result.transactions;
-      console.log(
-        "result transactions: ",
-        result.transactions.map((tx) => tx.hash)
-      );
-      console.log("lastest processed tx hash: ", this.latestProcessedTxHash);
 
       if (!this.latestProcessedTxHash) {
         transactions.push(...tempTransactions);

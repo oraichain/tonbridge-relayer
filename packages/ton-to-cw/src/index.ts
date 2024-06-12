@@ -48,7 +48,6 @@ export async function relay(data: {
   try {
     while (true) {
       try {
-        console.log("before processing key block and txs");
         const latestMasterchainBlock = await liteClient.getMasterchainInfo();
         const { rawBlockData } = await TonBlockProcessor.queryKeyBlock(
           latestMasterchainBlock.last.seqno,

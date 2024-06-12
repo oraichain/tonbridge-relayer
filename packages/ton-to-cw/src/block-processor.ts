@@ -123,7 +123,6 @@ export default class TonBlockProcessor {
     if (isBlockVerified) return;
 
     const vdata = await this.getMasterchainBlockValSignatures(seqno);
-    console.log("vdata length: ", vdata.length);
     const blockHeader = await this.liteClient.getBlockHeader(blockId);
     const blockInfo = await this.liteClient.engine.query(
       Functions.liteServer_getBlock,
@@ -146,7 +145,6 @@ export default class TonBlockProcessor {
   }
 
   async verifyMasterchainKeyBlock(seqno: number) {
-    console.log("prepare to verify masterchain keyblock: ", seqno);
     const { rawBlockData } = await TonBlockProcessor.queryKeyBlock(
       seqno,
       this.liteClient
