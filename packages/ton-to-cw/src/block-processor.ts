@@ -1,13 +1,9 @@
-import {
-  TonbridgeBridgeInterface,
-  TonbridgeValidatorInterface,
-} from "@oraichain/tonbridge-contracts-sdk";
+import { TonbridgeValidatorInterface } from "@oraichain/tonbridge-contracts-sdk";
 import { UserFriendlyValidator } from "@oraichain/tonbridge-contracts-sdk/build/TonbridgeValidator.types";
 import TonRocks, {
   ParsedBlock,
   ValidatorSignature,
 } from "@oraichain/tonbridge-utils";
-import Queue from "queue";
 import { LiteClient } from "ton-lite-client";
 import { Functions, liteServer_BlockData } from "ton-lite-client/dist/schema";
 import TonWeb from "tonweb";
