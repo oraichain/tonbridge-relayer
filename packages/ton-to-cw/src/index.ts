@@ -1,9 +1,5 @@
 import dotenv from "dotenv";
-import {
-  BlockHeaderTonWeb,
-  BlockShardsTonWeb,
-  StringBase64,
-} from "./@types/block";
+import { StringBase64 } from "./@types/block";
 import TonBlockProcessor from "./block-processor";
 import {
   TonbridgeValidatorInterface,

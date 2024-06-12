@@ -36,5 +36,5 @@ export interface BlockHeaderTonWeb {
 export interface BlockShardsTonWeb {
   "@type": "blocks.shards";
   shards: BlockIdTonWeb[];
-  "@extra": "1718131600.7640002:10:0.7669842695642266";
+  "@extra": string;
 }
