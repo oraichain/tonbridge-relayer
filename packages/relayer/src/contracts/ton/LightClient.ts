@@ -11,19 +11,18 @@ import {
 } from "@ton/core";
 
 import {
-  Commit,
   getAuthInfoInput,
   getBlockSlice,
   getMerkleProofs,
   getTimeSlice,
   getVersionSlice,
   txBodyWasmToRef,
-  TxWasm,
   Version,
 } from "./utils";
 
 import { crc32 } from "@src/constants/crc32";
-import { BlockId, Validator } from "@cosmjs/tendermint-rpc";
+import { BlockId, Commit, Validator } from "@cosmjs/tendermint-rpc";
+import { TxWasm } from "@src/@types/common";
 
 export type BlockHeader = {
   version: Version;
@@ -150,9 +149,16 @@ export class LightClient implements Contract {
     provider: ContractProvider,
     via: Sender,
     header: BlockHeader,
+    validators: Validator[],
+    commit: Commit,
     opts?: any
   ) {
-    const data = beginCell().storeRef(getBlockHashCell(header)).endCell();
+    const data = beginCell()
+      .storeRef(getBlockHashCell(header))
+      .storeRef(getValidatorsCell(validators)!)
+      .storeRef(getCommitCell(commit))
+      .endCell();
+
     await provider.internal(via, {
       value: opts?.value || 0,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
@@ -286,13 +292,11 @@ const getCommitCell = (commit: Commit) => {
   for (let i = commit.signatures.length - 1; i >= 0; i--) {
     const signature = commit.signatures[i];
     const cell = beginCell()
-      .storeUint(signature.block_id_flag, 8)
-      .storeBuffer(Buffer.from(signature.validator_address, "hex"))
-      .storeRef(getTimeSlice(signature.timestamp))
+      .storeUint(signature.blockIdFlag, 8)
+      .storeBuffer(Buffer.from(signature.validatorAddress))
+      .storeRef(getTimeSlice(signature.timestamp.toISOString()))
       .storeBuffer(
-        signature.signature
-          ? Buffer.from(signature.signature, "base64")
-          : Buffer.from("")
+        signature.signature ? Buffer.from(signature.signature) : Buffer.from("")
       )
       .endCell();
     if (!signatureCell) {
@@ -311,24 +315,20 @@ const getCommitCell = (commit: Commit) => {
   const commitCell = beginCell()
     .storeUint(BigInt(commit.height), 32)
     .storeUint(BigInt(commit.round), 32)
-    .storeRef(getBlockSlice(commit.block_id))
+    .storeRef(getBlockSlice(commit.blockId))
     .storeRef(signatureCell!)
     .endCell();
   return commitCell;
 };
 
-const getValidatorsCell = (validators: Validators[]) => {
+const getValidatorsCell = (validators: Validator[]) => {
   let validatorCell;
   for (let i = validators.length - 1; i >= 0; i--) {
-    let builder = beginCell().storeBuffer(
-      Buffer.from(validators[i].address, "hex")
-    );
-    if (validators[i]?.pub_key?.value) {
+    let builder = beginCell().storeBuffer(Buffer.from(validators[i].address));
+    if (validators[i]?.pubkey?.data) {
       builder = builder.storeRef(
         beginCell()
-          .storeBuffer(
-            Buffer.from(validators[i].pub_key.value as string, "base64")
-          )
+          .storeBuffer(Buffer.from(validators[i].pubkey.data))
           .endCell()
       );
     } else {
@@ -345,7 +345,7 @@ const getValidatorsCell = (validators: Validators[]) => {
           .endCell()
       );
     }
-    builder = builder.storeUint(parseInt(validators[i].voting_power), 32);
+    builder = builder.storeUint(validators[i].votingPower, 32);
     const innerCell = builder.endCell();
     if (!validatorCell) {
       validatorCell = beginCell()

@@ -9,7 +9,7 @@ import {
 } from "./cosmos.service";
 import { BridgeParsedData } from "./@types/interfaces/cosmwasm";
 import { Queue } from "bullmq";
-import { TonWorkerJob } from "./tonWorker";
+import { CosmosWorkerJob, TonWorkerJob } from "./worker";
 
 const connection = {
   host: envConfig.REDIS_HOST,
@@ -30,7 +30,6 @@ async function main() {
   const offset = await blockOffset.mayLoadBlockOffset(
     envConfig.SYNC_BLOCK_OFFSET
   );
-
   const syncDataOpt: SyncDataOptions = {
     rpcUrl: envConfig.COSMOS_RPC_URL,
     limit: envConfig.SYNC_LIMIT,
@@ -52,7 +51,6 @@ async function main() {
     envConfig.BRIDGE_WASM_ADDRESS,
     syncDataOpt
   );
-
   // UPDATE BLOCK OFFSET TO DATABASE
   const database = await DuckDb.getInstance(envConfig.CONNECTION_STRING);
   const blockOffSet = new CosmosBlockOffset(database);
@@ -61,19 +59,22 @@ async function main() {
     await blockOffSet.updateBlockOffset(newOffset);
     console.log("Update new offset at", newOffset);
   });
-
   // LISTEN ON THE PARSED_DATA FROM WATCHER
   cosmosWatcher.on(
     CosmwasmWatcherEvent.PARSED_DATA,
     async (data: BridgeParsedData) => {
       const { submitData, submittedTxs } = data;
+
+      // Submitting serialized data to cosmwasm bridge
       const submitDataQueue = submitData.map((tx) => {
         return {
-          name: "submitData",
+          name: CosmosWorkerJob.SubmitData,
           data: tx,
         };
       });
       await cosmosQueue.addBulk(submitDataQueue);
+
+      // Relaying submitted transaction by relayer
       const updateClientDataPromise = submittedTxs.map((tx) =>
         createUpdateClientData(envConfig.COSMOS_RPC_URL, tx.height)
       );

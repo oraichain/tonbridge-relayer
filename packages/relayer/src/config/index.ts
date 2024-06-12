@@ -1,5 +1,5 @@
-import { config } from "dotenv";
-config();
+import * as dotenv from "dotenv";
+dotenv.config();
 
 export const envConfig = {
   REDIS_HOST: process.env.REDIS_HOST || "http://localhost",

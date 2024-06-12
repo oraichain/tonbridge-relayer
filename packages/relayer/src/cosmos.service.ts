@@ -167,13 +167,12 @@ export const createUpdateClientData = async (
   height: number
 ) => {
   const tendermintClient = await Tendermint34Client.connect(rpcUrl);
-
   const [
     {
       block: { lastCommit },
     },
     {
-      block: { header },
+      block: { header, txs },
     },
     { validators },
   ] = await Promise.all([
@@ -185,7 +184,7 @@ export const createUpdateClientData = async (
     }),
   ]);
 
-  return { validators, lastCommit, header };
+  return { validators, lastCommit, header, txs };
 };
 
 export const createCosmosBridgeWatcher = (

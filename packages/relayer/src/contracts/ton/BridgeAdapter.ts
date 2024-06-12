@@ -9,8 +9,9 @@ import {
   Sender,
   SendMode,
 } from "@ton/core";
-import { getAuthInfoInput, txBodyWasmToRef, TxWasm } from "./utils";
+import { getAuthInfoInput, txBodyWasmToRef } from "./utils";
 import { crc32 } from "@src/constants/crc32";
+import { TxWasm } from "@src/@types/common";
 
 export type BridgeAdapterConfig = {
   bridge_wasm_smart_contract: string;
