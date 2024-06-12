@@ -11,7 +11,6 @@ import {
 } from "@ton/core";
 
 import {
-  BlockId,
   Commit,
   getAuthInfoInput,
   getBlockSlice,
@@ -20,11 +19,11 @@ import {
   getVersionSlice,
   txBodyWasmToRef,
   TxWasm,
-  Validators,
   Version,
 } from "./utils";
 
 import { crc32 } from "@src/constants/crc32";
+import { BlockId, Validator } from "@cosmjs/tendermint-rpc";
 
 export type BlockHeader = {
   version: Version;
@@ -246,7 +245,7 @@ export class LightClient implements Contract {
   async sendStoreUntrustedValidators(
     provider: ContractProvider,
     via: Sender,
-    validators: Validators[],
+    validators: Validator[],
     opts?: any
   ) {
     const validatorCell = getValidatorsCell(validators);

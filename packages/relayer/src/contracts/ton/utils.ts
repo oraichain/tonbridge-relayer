@@ -13,6 +13,7 @@ import {
 
 import { int64FromString, writeVarint64 } from "cosmjs-types/varint";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
+import { BlockId } from "@cosmjs/tendermint-rpc";
 
 export type TestClientConfig = {
   id: number;
@@ -28,14 +29,6 @@ export function testClientConfigToCell(config: TestClientConfig): Cell {
 export type Version = {
   block: string | number;
   app?: string | number;
-};
-
-export type BlockId = {
-  hash: string;
-  parts: {
-    hash: string;
-    total: number;
-  };
 };
 
 export type CanonicalVote = {
@@ -103,8 +96,18 @@ export const getInt64Slice = (modeInfo: ModeInfo_Single) => {
 
 export const getBlockSlice = (blockId: BlockId): Cell => {
   return beginCell()
-    .storeUint(blockId.hash ? BigInt("0x" + blockId.hash) : 0n, 256)
-    .storeUint(blockId.parts.hash ? BigInt("0x" + blockId.parts.hash) : 0n, 256)
+    .storeUint(
+      blockId.hash
+        ? BigInt("0x" + Buffer.from(blockId.hash).toString("hex"))
+        : 0n,
+      256
+    )
+    .storeUint(
+      blockId.parts.hash
+        ? BigInt("0x" + Buffer.from(blockId.parts.hash).toString("hex"))
+        : 0n,
+      256
+    )
     .storeUint(blockId.parts.total, 8)
     .endCell();
 };
