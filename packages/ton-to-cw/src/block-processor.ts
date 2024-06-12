@@ -13,8 +13,6 @@ import { Functions, liteServer_BlockData } from "ton-lite-client/dist/schema";
 import TonWeb from "tonweb";
 
 export default class TonBlockProcessor {
-  public keyBlockQueue = new Queue({ results: [] });
-
   constructor(
     protected readonly validator: TonbridgeValidatorInterface,
     protected readonly liteClient: LiteClient,
@@ -66,10 +64,6 @@ export default class TonBlockProcessor {
 
     const parsedBlock = TonRocks.bc.BlockParser.parseBlock(rootCell);
     return parsedBlock;
-  }
-
-  async processKeyBlock() {
-    if (this.keyBlockQueue.length > 0) await this.keyBlockQueue.shift().promise;
   }
 
   queryAllValidators = async () => {
