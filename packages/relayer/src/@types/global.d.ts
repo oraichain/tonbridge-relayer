@@ -19,6 +19,9 @@ declare global {
       BRIDGE_WASM_ADDRESS: string;
       BRIDGE_TON_ADDRESS: string;
     }
+    interface BigInt {
+      toJSON(): string;
+    }
   }
 }
 

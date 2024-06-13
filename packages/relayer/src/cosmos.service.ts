@@ -15,6 +15,7 @@ import {
   ICosmwasmParser,
 } from "./@types/interfaces/cosmwasm";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
+import { envConfig } from "./config";
 
 export const enum BRIDGE_ACTION {
   TRANSFER_TO_TON = "transfer_to_ton",
@@ -29,6 +30,7 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
     const submittedTxs = [];
     const submitData = [];
     const allBridgeData = txs
+      .filter((tx) => tx.code === 0)
       .flatMap((tx) => {
         const logs: Log[] = JSON.parse(tx.rawLog);
         return logs.map((log) =>
@@ -93,7 +95,7 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
           attr["to"],
           attr["denom"],
           BigInt(attr["amount"]),
-          BigInt(attr["crcSrc"])
+          BigInt(attr["crc_src"])
         ),
         ...basicInfo,
       };
@@ -144,13 +146,10 @@ export class CosmwasmWatcher<T> extends EventEmitter {
     if (this.syncData && this.running) {
       this.syncData.destroy();
     }
-
     this.running = true;
     await this.syncData.start();
-
     this.syncData.on(CHANNEL.QUERY, async (chunk: Txs) => {
       const parsedData = this.cosmwasmParser.processChunk(chunk);
-
       if (parsedData) {
         this.emit(CosmwasmWatcherEvent.PARSED_DATA, parsedData);
       }
