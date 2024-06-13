@@ -48,7 +48,7 @@ export function intToIP(int: number) {
     "https://ton.org/global.config.json"
   ).then((data) => data.json());
   // Personal choice. Can choose a different index if needed
-  const server = liteservers[2];
+  const server = liteservers[0];
 
   const engines: LiteEngine[] = [];
   engines.push(

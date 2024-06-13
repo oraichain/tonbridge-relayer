@@ -1,17 +1,21 @@
 export type StringBase64 = string;
 
-export interface BlockIdTonWeb {
-  "@type": "ton.blockIdExt";
+export type MinimalBlockIdTonCenterV2 = {
   workchain: number;
   shard: string;
   seqno: number;
+};
+
+export type BasicBlockIdTonCenterV2 = MinimalBlockIdTonCenterV2 & {
   root_hash: StringBase64;
   file_hash: StringBase64;
-}
+};
 
-export interface BlockHeaderTonWeb {
-  "@type": "blocks.header";
-  id: BlockIdTonWeb;
+export type BlockIdTonCenterV2 = BasicBlockIdTonCenterV2 & {
+  "@type": "ton.blockIdExt";
+};
+
+export type BasicTonBlockInfoTonCenterV2 = {
   global_id: number;
   version: number;
   flags: number;
@@ -28,13 +32,28 @@ export interface BlockHeaderTonWeb {
   start_lt: string;
   end_lt: string;
   gen_utime: number;
-  vert_seqno: 1;
-  prev_blocks: BlockIdTonWeb[];
-  "@extra": string;
-}
+  vert_seqno: number;
+};
 
-export interface BlockShardsTonWeb {
-  "@type": "blocks.shards";
-  shards: BlockIdTonWeb[];
+export type BlockHeaderTonCenterV2 = BasicTonBlockInfoTonCenterV2 & {
+  "@type": "blocks.header";
+  id: BlockIdTonCenterV2;
+  prev_blocks: BlockIdTonCenterV2[];
   "@extra": string;
-}
+};
+
+export type BlockShardsTonWeb = {
+  "@type": "blocks.shards";
+  shards: BlockIdTonCenterV2[];
+  "@extra": string;
+};
+
+export type BlockInfoTonCenterV3 = BasicBlockIdTonCenterV2 &
+  BasicTonBlockInfoTonCenterV2 & {
+    master_ref_seqno: number;
+    rand_seed: StringBase64;
+    created_by: StringBase64;
+    tx_count: number;
+    masterchain_block_ref: MinimalBlockIdTonCenterV2;
+    prev_blocks: MinimalBlockIdTonCenterV2[];
+  };

@@ -7,9 +7,28 @@ import { StringBase64 } from "src/@types/block";
 import { LiteClient } from "ton-lite-client";
 import TonBlockProcessor from "./block-processor";
 import { setTimeout } from "timers/promises";
+import TonCenterV3API from "./toncenter-api";
+
+function hexToSignedDecimal(hexString: string, bitLength: 64) {
+  // Convert hex string to BigInt
+  let bigint = BigInt(`0x${hexString}`);
+
+  // Calculate the maximum value for the given bit length
+  let maxVal = BigInt(2 ** bitLength);
+
+  // Calculate the threshold for negative numbers
+  let threshold = maxVal / BigInt(2);
+
+  // If the number is greater than or equal to the threshold, it's negative
+  if (bigint >= threshold) {
+    bigint -= maxVal;
+  }
+
+  return bigint.toString(10);
+}
 
 export default class TonTxProcessor {
-  protected unprocessedTxs: any[] = [];
+  private tonCenterV3: TonCenterV3API;
 
   constructor(
     protected readonly validator: TonbridgeValidatorInterface,
@@ -17,9 +36,11 @@ export default class TonTxProcessor {
     protected readonly liteClient: LiteClient,
     protected readonly jettonBridgeAddress: string,
     protected readonly blockProcessor: TonBlockProcessor,
-    protected readonly tonCenterV3Api: string = "https://toncenter.com/api/v3",
+    protected readonly tonCenterV3APIBaseUrl: string = "https://toncenter.com/api/v3",
     protected latestProcessedTxHash: StringBase64 = ""
-  ) {}
+  ) {
+    this.tonCenterV3 = new TonCenterV3API(tonCenterV3APIBaseUrl);
+  }
 
   private async queryUnprocessedTransactions() {
     let offset = 0;
@@ -27,9 +48,11 @@ export default class TonTxProcessor {
     let transactions: any[] = [];
     let newTransactions: any[] = [];
     while (true) {
-      const result = await fetch(
-        `${this.tonCenterV3Api}/transactions?account=${this.jettonBridgeAddress}&limit=${limit}&offset=${offset}&sort=desc`
-      ).then((data) => data.json());
+      const result = await this.tonCenterV3.queryTransactions(
+        this.jettonBridgeAddress,
+        limit,
+        offset
+      );
       if (!result.transactions) {
         await setTimeout(2000);
         continue;
@@ -81,8 +104,11 @@ export default class TonTxProcessor {
 
   async processTransaction(tx: any) {
     const { block_ref, mc_block_seqno, hash, lt } = tx;
-    console.log("tx data: ", block_ref, mc_block_seqno, hash, lt);
-    const shardInfo = await this.liteClient.lookupBlockByID(block_ref);
+    const shard = hexToSignedDecimal(block_ref.shard, 64);
+    const shardInfo = await this.liteClient.lookupBlockByID({
+      ...block_ref,
+      shard,
+    });
     const transaction = await this.liteClient.getAccountTransaction(
       Address.parse(this.jettonBridgeAddress),
       lt,
