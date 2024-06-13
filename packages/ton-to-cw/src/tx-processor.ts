@@ -132,7 +132,7 @@ export default class TonTxProcessor {
       await this.blockProcessor.verifyShardBlocks(
         block_ref.workchain,
         block_ref.seqno,
-        block_ref.shard
+        shard
       );
     }
 
