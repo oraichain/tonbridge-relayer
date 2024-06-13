@@ -80,6 +80,11 @@ export const Opcodes = {
   verify_untrusted_validators: crc32("op::verify_untrusted_validators"),
 };
 
+type SendOpts = {
+  queryID?: number;
+  value: bigint;
+};
+
 export class LightClient implements Contract {
   constructor(
     readonly address: Address,
@@ -114,7 +119,7 @@ export class LightClient implements Contract {
     header: Header,
     validators: Validator[],
     commit: Commit,
-    opts?: any
+    opts: SendOpts
   ) {
     const data = beginCell()
       .storeRef(getBlockHashCell(header))
@@ -123,7 +128,7 @@ export class LightClient implements Contract {
       .endCell();
 
     await provider.internal(via, {
-      value: opts?.value || 0,
+      value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.verify_block_hash, 32)
@@ -137,12 +142,12 @@ export class LightClient implements Contract {
     provider: ContractProvider,
     via: Sender,
     commit: Commit,
-    opts?: any
+    opts: SendOpts
   ) {
     const commitCell = getCommitCell(commit);
     const cell = beginCell().storeRef(commitCell).endCell();
     await provider.internal(via, {
-      value: opts?.value || 0,
+      value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.verify_sigs, 32)
@@ -159,7 +164,7 @@ export class LightClient implements Contract {
     tx: TxWasm,
     leaves: Buffer[],
     leafData: Buffer,
-    opts?: any
+    opts: SendOpts
   ) {
     const { signInfos, fee, tip } = getAuthInfoInput(tx.authInfo);
     const authInfo = beginCell()
@@ -197,7 +202,7 @@ export class LightClient implements Contract {
     const { branch: proofs, positions } = getMerkleProofs(leaves, leafData);
 
     await provider.internal(via, {
-      value: opts?.value || 0,
+      value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.verify_receipt, 32)
@@ -217,10 +222,10 @@ export class LightClient implements Contract {
   async sendVerifyUntrustedValidators(
     provider: ContractProvider,
     via: Sender,
-    opts?: any
+    opts?: SendOpts
   ) {
     await provider.internal(via, {
-      value: opts?.value || 0,
+      value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.verify_untrusted_validators, 32)
@@ -234,11 +239,11 @@ export class LightClient implements Contract {
     provider: ContractProvider,
     via: Sender,
     validators: Validator[],
-    opts?: any
+    opts?: SendOpts
   ) {
     const validatorCell = getValidatorsCell(validators);
     await provider.internal(via, {
-      value: opts?.value || 0,
+      value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.store_untrusted_validators, 32)

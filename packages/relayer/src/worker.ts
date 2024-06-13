@@ -21,7 +21,6 @@ import {
   deserializeHeader,
   deserializeValidator,
 } from "./utils";
-import { writeFileSync } from "fs";
 
 export type RelayCosmwasmData = {
   data: string;
