@@ -17,29 +17,11 @@ import {
   getTimeSlice,
   getVersionSlice,
   txBodyWasmToRef,
-  Version,
 } from "./utils";
 
 import { crc32 } from "@src/constants/crc32";
-import { BlockId, Commit, Validator } from "@cosmjs/tendermint-rpc";
+import { Commit, Header, Validator } from "@cosmjs/tendermint-rpc";
 import { TxWasm } from "@src/@types/common";
-
-export type BlockHeader = {
-  version: Version;
-  chainId: string;
-  height: number;
-  time: string;
-  lastBlockId: BlockId;
-  proposerAddress: Uint8Array;
-  lastCommitHash: Uint8Array;
-  dataHash: Uint8Array;
-  validatorHash: Uint8Array;
-  nextValidatorHash: Uint8Array;
-  consensusHash: Uint8Array;
-  appHash: Uint8Array;
-  lastResultsHash: Uint8Array;
-  evidenceHash: Uint8Array;
-};
 
 export type LightClientConfig = {
   height: number;
@@ -126,29 +108,10 @@ export class LightClient implements Contract {
     });
   }
 
-  async sendVerifySigs(
-    provider: ContractProvider,
-    via: Sender,
-    commit: Commit,
-    opts?: any
-  ) {
-    const commitCell = getCommitCell(commit);
-    const cell = beginCell().storeRef(commitCell).endCell();
-    await provider.internal(via, {
-      value: opts?.value || 0,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.verify_sigs, 32)
-        .storeUint(opts?.queryID || 0, 64)
-        .storeRef(cell)
-        .endCell(),
-    });
-  }
-
   async sendVerifyBlockHash(
     provider: ContractProvider,
     via: Sender,
-    header: BlockHeader,
+    header: Header,
     validators: Validator[],
     commit: Commit,
     opts?: any
@@ -166,6 +129,25 @@ export class LightClient implements Contract {
         .storeUint(Opcodes.verify_block_hash, 32)
         .storeUint(opts?.queryID || 0, 64)
         .storeRef(data)
+        .endCell(),
+    });
+  }
+
+  async sendVerifySigs(
+    provider: ContractProvider,
+    via: Sender,
+    commit: Commit,
+    opts?: any
+  ) {
+    const commitCell = getCommitCell(commit);
+    const cell = beginCell().storeRef(commitCell).endCell();
+    await provider.internal(via, {
+      value: opts?.value || 0,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.verify_sigs, 32)
+        .storeUint(opts?.queryID || 0, 64)
+        .storeRef(cell)
         .endCell(),
     });
   }
@@ -288,13 +270,13 @@ export class LightClient implements Contract {
 }
 
 const getCommitCell = (commit: Commit) => {
-  let signatureCell;
+  let signatureCell: Cell | undefined;
   for (let i = commit.signatures.length - 1; i >= 0; i--) {
     const signature = commit.signatures[i];
     const cell = beginCell()
       .storeUint(signature.blockIdFlag, 8)
       .storeBuffer(Buffer.from(signature.validatorAddress))
-      .storeRef(getTimeSlice(signature.timestamp.toString()))
+      .storeRef(getTimeSlice(signature.timestamp.toISOString()))
       .storeBuffer(
         signature.signature ? Buffer.from(signature.signature) : Buffer.from("")
       )
@@ -311,12 +293,11 @@ const getCommitCell = (commit: Commit) => {
         .endCell();
     }
   }
-
   const commitCell = beginCell()
     .storeUint(BigInt(commit.height), 32)
     .storeUint(BigInt(commit.round), 32)
     .storeRef(getBlockSlice(commit.blockId))
-    .storeRef(signatureCell!)
+    .storeRef(signatureCell)
     .endCell();
   return commitCell;
 };
@@ -362,20 +343,20 @@ const getValidatorsCell = (validators: Validator[]) => {
   return validatorCell;
 };
 
-const getBlockHashCell = (header: BlockHeader) => {
+const getBlockHashCell = (header: Header) => {
   const cell = beginCell()
     .storeRef(getVersionSlice(header.version))
     .storeRef(beginCell().storeBuffer(Buffer.from(header.chainId)).endCell())
     .storeUint(header.height, 32)
-    .storeRef(getTimeSlice(header.time))
+    .storeRef(getTimeSlice(header.time.toISOString()))
     .storeRef(getBlockSlice(header.lastBlockId))
     .storeBuffer(Buffer.from(header.proposerAddress));
 
   const hashCell1 = beginCell()
     .storeRef(beginCell().storeBuffer(Buffer.from(header.lastCommitHash)))
     .storeRef(beginCell().storeBuffer(Buffer.from(header.dataHash)))
-    .storeRef(beginCell().storeBuffer(Buffer.from(header.validatorHash)))
-    .storeRef(beginCell().storeBuffer(Buffer.from(header.nextValidatorHash)));
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.validatorsHash)))
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.nextValidatorsHash)));
 
   const hashCell2 = beginCell()
     .storeRef(beginCell().storeBuffer(Buffer.from(header.consensusHash)))

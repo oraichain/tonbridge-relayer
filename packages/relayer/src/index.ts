@@ -77,7 +77,7 @@ export async function relay() {
         createUpdateClientData(envConfig.COSMOS_RPC_URL, tx.height)
       );
       const updateClientData = await Promise.all(updateClientDataPromise);
-      // TODO: FORMAT ALL UINT8ARRAY TO HEX BEFORE ADD TO QUEUE
+
       const relayDataQueue = updateClientData.map((clientData, i) => {
         return {
           name: TonWorkerJob.RelayCosmWasmData,
