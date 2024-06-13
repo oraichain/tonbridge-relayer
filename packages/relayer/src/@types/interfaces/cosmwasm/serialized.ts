@@ -26,7 +26,7 @@ export type SerializedHeader = {
   validatorsHash: string;
   nextValidatorsHash: string;
   consensusHash: string;
-  lastBlockId: BlockId;
+  lastBlockId: SerializedBlockId;
   version: Version;
   chainId: string;
   height: number;

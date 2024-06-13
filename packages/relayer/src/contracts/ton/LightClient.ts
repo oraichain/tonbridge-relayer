@@ -276,7 +276,7 @@ const getCommitCell = (commit: Commit) => {
     const cell = beginCell()
       .storeUint(signature.blockIdFlag, 8)
       .storeBuffer(Buffer.from(signature.validatorAddress))
-      .storeRef(getTimeSlice(signature.timestamp.toISOString()))
+      .storeRef(getTimeSlice(signature.timestamp))
       .storeBuffer(
         signature.signature ? Buffer.from(signature.signature) : Buffer.from("")
       )
@@ -348,7 +348,7 @@ const getBlockHashCell = (header: Header) => {
     .storeRef(getVersionSlice(header.version))
     .storeRef(beginCell().storeBuffer(Buffer.from(header.chainId)).endCell())
     .storeUint(header.height, 32)
-    .storeRef(getTimeSlice(header.time.toISOString()))
+    .storeRef(getTimeSlice(header.time))
     .storeRef(getBlockSlice(header.lastBlockId))
     .storeBuffer(Buffer.from(header.proposerAddress));
 

@@ -28,7 +28,7 @@ const tonQueue = new Queue("ton", {
 const cosmosQueue = new Queue("cosmos", { connection });
 
 export async function relay() {
-  console.log("Start relaying process");
+  console.log("[RELAY] Start relaying process");
   const duckDb = await DuckDb.getInstance(envConfig.CONNECTION_STRING);
   const blockOffset = new CosmosBlockOffset(duckDb);
   await blockOffset.createTable();
@@ -57,7 +57,7 @@ export async function relay() {
   cosmosWatcher.on(CosmwasmWatcherEvent.SYNC_DATA, async (chunk: Txs) => {
     const { offset: newOffset } = chunk;
     await blockOffset.updateBlockOffset(newOffset);
-    console.log("Update new offset at", newOffset);
+    console.log("[SYNC_DATA] Update new offset at", newOffset);
   });
   // LISTEN ON THE PARSED_DATA FROM WATCHER
   cosmosWatcher.on(
@@ -91,6 +91,6 @@ export async function relay() {
       await tonQueue.addBulk(relayDataQueue);
     }
   );
-  console.log("Start watching cosmos chain");
+  console.log("[RELAY] Start watching cosmos chain");
   await cosmosWatcher.start();
 }

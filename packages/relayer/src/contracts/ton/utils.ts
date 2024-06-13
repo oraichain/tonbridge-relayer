@@ -13,7 +13,11 @@ import {
 
 import { int64FromString, writeVarint64 } from "cosmjs-types/varint";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
-import { BlockId } from "@cosmjs/tendermint-rpc";
+import {
+  BlockId,
+  ReadonlyDateWithNanoseconds,
+  toSeconds,
+} from "@cosmjs/tendermint-rpc";
 import { TxBodyWasm } from "@src/@types/common";
 
 export type TestClientConfig = {
@@ -61,12 +65,12 @@ export const getVersionSlice = (version: Version): Cell => {
   return cell.endCell();
 };
 
-export const getTimeSlice = (timestampz: string): Cell => {
-  const { seconds, nanoseconds } = getTimeComponent(timestampz);
+export const getTimeSlice = (timestampz: ReadonlyDateWithNanoseconds): Cell => {
+  const { seconds, nanos } = toSeconds(timestampz);
   let cell = beginCell();
   cell = cell
     .storeUint(seconds < 0 ? 0 : seconds, 32)
-    .storeUint(nanoseconds < 0 ? 0 : nanoseconds, 32);
+    .storeUint(nanos < 0 ? 0 : nanos, 32);
 
   return cell.endCell();
 };
@@ -93,17 +97,6 @@ export const getBlockSlice = (blockId: BlockId): Cell => {
       256
     )
     .storeUint(blockId.parts.total, 8)
-    .endCell();
-};
-
-export const getCanonicalVoteSlice = (vote: CanonicalVote): Cell => {
-  return beginCell()
-    .storeUint(vote.type, 32)
-    .storeUint(vote.height, 32)
-    .storeUint(vote.round, 32)
-    .storeRef(getBlockSlice(vote.block_id))
-    .storeRef(getTimeSlice(vote.timestamp))
-    .storeRef(beginCell().storeBuffer(Buffer.from(vote.chain_id)).endCell())
     .endCell();
 };
 
@@ -637,11 +630,11 @@ export function getAuthInfoInput(data: AuthInfo) {
   }
   let fee = beginCell().endCell();
   if (data.fee) {
-    fee = getFeeCell(data.fee) as any;
+    fee = getFeeCell(data.fee);
   }
   let tip = beginCell().endCell();
   if (data.tip) {
-    tip = getTipCell(data.tip) as any;
+    tip = getTipCell(data.tip);
   }
   return { signInfos: finalSignInfosCell, fee, tip };
 }

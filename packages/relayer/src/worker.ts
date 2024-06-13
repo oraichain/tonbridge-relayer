@@ -1,7 +1,11 @@
 import { ConnectionOptions, Job, Worker } from "bullmq";
 import { envConfig } from "./config";
 import { beginCell, OpenedContract, Sender, toNano } from "@ton/core";
-import { SandboxContract } from "@ton/sandbox";
+import {
+  printTransactionFees,
+  SandboxContract,
+  SendMessageResult,
+} from "@ton/sandbox";
 import { LightClient } from "./contracts/ton/LightClient";
 import { BridgeAdapter } from "./contracts/ton/BridgeAdapter";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
@@ -17,6 +21,7 @@ import {
   deserializeHeader,
   deserializeValidator,
 } from "./utils";
+import { writeFileSync } from "fs";
 
 export type RelayCosmwasmData = {
   data: string;
@@ -38,15 +43,15 @@ export const updateBlock = async (
   clientData: LightClientData
 ) => {
   const { header, lastCommit, validators } = clientData;
-
   const result = await lightClient.sendVerifyBlockHash(
     sender,
     deserializeHeader(header),
     validators.map(deserializeValidator),
     deserializeCommit(lastCommit),
-    { value: toNano("2") }
+    { value: toNano("5") }
   );
-  console.log(result);
+  console.log("[updateBlock]");
+  printTransactionFees((result as SendMessageResult).transactions);
 };
 
 export const getTxAndProofByHash = async (
@@ -102,35 +107,43 @@ export const createTonWorker = (
       switch (job.name) {
         case TonWorkerJob.RelayCosmWasmData: {
           const height = await lightClient.getHeight();
-          console.log(height);
+          console.log("[TON-WORKER] LightClient current height", height);
           if (height < data.clientData.header.height) {
             console.log(
               "[TON-WORKER] Updating block:",
               data.clientData.header.height
             );
-            await updateBlock(lightClient, sender, data.clientData).catch(
-              console.error
-            );
+            await updateBlock(lightClient, sender, data.clientData);
             console.log(
               "[TON-WORKER] Updating block:",
               data.clientData.header.height,
               "successfully"
             );
-            console.log("Finished: ", {
-              height: await lightClient.getHeight(),
-              chainId: await lightClient.getChainId(),
-              dataHash: (await lightClient.getDataHash()).toString("hex"),
-              validatorHash: (await lightClient.getValidatorHash()).toString(
-                "hex"
-              ),
-            });
           }
+          const [updatedHeight, chainId, dataHash, validatorHash] =
+            await Promise.all([
+              lightClient.getHeight(),
+              lightClient.getChainId(),
+              lightClient.getDataHash(),
+              lightClient.getValidatorHash(),
+            ]);
+          console.log("[TON-WORKER] Finished update block ", {
+            updatedHeight,
+            chainId,
+            dataHash: dataHash.toString("hex"),
+            validatorHash: validatorHash.toString("hex"),
+          });
           const { txWasm, proofs, positions } = await getTxAndProofByHash(
             data.txHash,
-            data.clientData.txs
+            data.clientData.txs.map((tx) => Buffer.from(tx, "hex"))
           );
-          console.log("Relaying tx:", data.txHash, "at height:", height);
-          await bridgeAdapter.sendTx(
+          console.log(
+            "[TON-WORKER] Relaying tx:",
+            data.txHash,
+            "at height:",
+            updatedHeight
+          );
+          const result = await bridgeAdapter.sendTx(
             sender,
             BigInt(data.clientData.header.height),
             txWasm,
@@ -139,7 +152,10 @@ export const createTonWorker = (
             beginCell().storeBuffer(Buffer.from(data.data, "hex")).endCell(),
             toNano("2")
           );
-          console.log("Relaying tx:", data.txHash, "successfully");
+          console.log("[bridgeAdapter-sendTx]");
+          printTransactionFees((result as any).transactions);
+          // TODO: Check txResult to see if tx is relayed successfully
+          console.log("[TON-WORKER] Relaying tx:", data.txHash, "successfully");
           break;
         }
         default:
@@ -164,9 +180,12 @@ export const createCosmosWorker = (
       const data = job.data;
       switch (job.name) {
         case CosmosWorkerJob.SubmitData: {
-          console.log("Submitting data to cosmos bridge");
+          console.log("[COSMOS-WORKER] Submitting data to cosmos bridge");
           const result = await bridgeWasm.submit(data);
-          console.log("Submit successfully at", result.transactionHash);
+          console.log(
+            "[COSMOS-WORKER] Submit successfully at",
+            result.transactionHash
+          );
           break;
         }
         default:
