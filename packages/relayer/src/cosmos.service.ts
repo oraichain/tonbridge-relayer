@@ -76,7 +76,7 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
       timestamp: timestamp,
     };
     const wasmAttr = parseWasmEvents(events);
-    const filterByContractAddress = (attr: any) =>
+    const filterByContractAddress = (attr: Record<string, string>) =>
       attr["_contract_address"] === this.bridgeWasmAddress;
     // This action come from user need to normalize and submit by relayer.
     const transferToTon = wasmAttr
@@ -120,7 +120,7 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
       beginCell()
         .storeAddress(Address.parse(to))
         .storeAddress(Address.parse(denom))
-        .storeUint(amount, 32)
+        .storeUint(amount, 128)
         .storeUint(crcSrc, 32)
         .endCell()
         .bits.toString(),

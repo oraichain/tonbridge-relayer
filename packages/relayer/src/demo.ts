@@ -12,6 +12,7 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { ReadWriteStateClient } from "./contracts/cosmwasm/mock";
 import { GasPrice } from "@cosmjs/stargate";
+import { JettonWallet } from "./contracts/ton/JettonWallet";
 
 (async () => {
   // Setup
@@ -31,6 +32,8 @@ import { GasPrice } from "@cosmjs/stargate";
   // Deploying to TON sandbox blockchain
   const deployer = await blockchain.treasury("deployer");
   const sender = deployer.getSender();
+  // setup empty user balance
+  const user = await blockchain.treasury("user", { balance: 0n });
   const lightClient = blockchain.openContract(
     LightClient.createFromConfig(
       {
@@ -44,7 +47,7 @@ import { GasPrice } from "@cosmjs/stargate";
     )
   );
   await lightClient.sendDeploy(sender, toNano("0.5"));
-  console.log("Deployed LightClient at", lightClient.address.toString());
+  console.log("[Demo] Deployed LightClient at", lightClient.address.toString());
   const bridgeAdapter = blockchain.openContract(
     BridgeAdapter.createFromConfig(
       {
@@ -56,7 +59,10 @@ import { GasPrice } from "@cosmjs/stargate";
     )
   );
   await bridgeAdapter.sendDeploy(sender, toNano("0.05"));
-  console.log("Deployed bridgeAdapter at", bridgeAdapter.address.toString());
+  console.log(
+    "[Demo] Deployed bridgeAdapter at",
+    bridgeAdapter.address.toString()
+  );
   const jettonMinterSrcCosmos = blockchain.openContract(
     JettonMinter.createFromConfig(
       {
@@ -68,6 +74,10 @@ import { GasPrice } from "@cosmjs/stargate";
     )
   );
   await jettonMinterSrcCosmos.sendDeploy(sender, toNano("0.05"));
+  console.log(
+    "[Demo] Deployed jettonMinterSrcCosmos at",
+    jettonMinterSrcCosmos.address.toString()
+  );
   const jettonMinterSrcTon = blockchain.openContract(
     JettonMinter.createFromConfig(
       {
@@ -79,6 +89,34 @@ import { GasPrice } from "@cosmjs/stargate";
     )
   );
   await jettonMinterSrcTon.sendDeploy(sender, toNano("0.05"));
+  console.log(
+    "[Demo] Deployed jettonMinterSrcTon at",
+    jettonMinterSrcTon.address.toString()
+  );
+  // TODO: investigate fees mechanism suitable for our contract
+  // Send ton to contract to PayFees
+  await deployer.getSender().send({
+    to: bridgeAdapter.address,
+    value: toNano("1000"),
+  });
+
+  await deployer.getSender().send({
+    to: jettonMinterSrcCosmos.address,
+    value: toNano("1000"),
+  });
+
+  await deployer.getSender().send({
+    to: jettonMinterSrcTon.address,
+    value: toNano("1000"),
+  });
+
+  await jettonMinterSrcTon.sendMint(deployer.getSender(), {
+    toAddress: bridgeAdapter.address,
+    jettonAmount: toNano(1000000000),
+    amount: toNano(0.5), // deploy fee
+    queryId: 0,
+    value: toNano(1),
+  });
 
   // SigningCosmwasmClient
   const wallet = await DirectSecp256k1HdWallet.fromMnemonic(
@@ -116,10 +154,77 @@ import { GasPrice } from "@cosmjs/stargate";
   cosmosWorker.run();
   // Start watching
   await relay();
-  await bridgeWasm.transferToTon({
-    to: deployer.address.toString(),
+  const transferCw20 = await bridgeWasm.transferToTon({
+    to: user.address.toString(),
     denom: jettonMinterSrcCosmos.address.toString(),
     amount: "1000000000",
     crcSrc: Src.COSMOS.toString(),
+  });
+  console.log("[Demo] Transfer CW20 to TON", transferCw20.transactionHash);
+  const transferJetton = await bridgeWasm.transferToTon({
+    to: user.address.toString(),
+    denom: jettonMinterSrcTon.address.toString(),
+    amount: "1000000000",
+    crcSrc: Src.TON.toString(),
+  });
+  console.log("[Demo] Transfer jetton to TON", transferJetton.transactionHash);
+  tonWorker.on("completed", async (job) => {
+    const data = job.data;
+    const cellBuffer = data.data;
+    const sliceData = beginCell()
+      .storeBuffer(Buffer.from(cellBuffer, "hex"))
+      .endCell()
+      .beginParse();
+    const to = sliceData.loadAddress();
+    const denom = sliceData.loadAddress();
+    const amount = sliceData.loadUint(128);
+    const crcSrc = sliceData.loadUint(32);
+    if (crcSrc === Src.COSMOS) {
+      console.log(
+        "[TON-WORKER-EVENT-COMPLETED] Success transferTo",
+        to.toString(),
+        "amount",
+        amount,
+        "denom",
+        denom.toString(),
+        "src::cosmos"
+      );
+      const userJettonWallet = await jettonMinterSrcCosmos.getWalletAddress(to);
+      const userJettonWalletBalance =
+        JettonWallet.createFromAddress(userJettonWallet);
+      const wallet = blockchain.openContract(userJettonWalletBalance);
+      const balance = await wallet.getBalance();
+      console.log(
+        "[TON-WORKER-EVENT-COMPLETED] user",
+        user.address.toString(),
+        "balance",
+        balance.amount,
+        "denom",
+        jettonMinterSrcCosmos.address.toString()
+      );
+    } else {
+      console.log(
+        "[TON-WORKER-EVENT-COMPLETED] Success transferTo",
+        to.toString(),
+        "amount",
+        amount,
+        "denom",
+        denom.toString(),
+        "src::ton"
+      );
+      const userJettonWallet = await jettonMinterSrcTon.getWalletAddress(to);
+      const userJettonWalletBalance =
+        JettonWallet.createFromAddress(userJettonWallet);
+      const wallet = blockchain.openContract(userJettonWalletBalance);
+      const balance = await wallet.getBalance();
+      console.log(
+        "[TON-WORKER-EVENT-COMPLETED] user",
+        user.address.toString(),
+        "balance",
+        balance.amount,
+        "denom",
+        jettonMinterSrcTon.address.toString()
+      );
+    }
   });
 })();

@@ -1,5 +1,11 @@
-import { Validator, Header, BlockId, Commit } from "@cosmjs/tendermint-rpc";
-import { BlockIDFlag } from "cosmjs-types/tendermint/types/types";
+import {
+  Validator,
+  Header,
+  BlockId,
+  Commit,
+  toRfc3339WithNanoseconds,
+  fromRfc3339WithNanoseconds,
+} from "@cosmjs/tendermint-rpc";
 import {
   SerializedValidator,
   SerializedBlockId,
@@ -38,7 +44,8 @@ export const serializeBlockId = (
 export const serializeHeader = (header: Header): SerializedHeader => {
   return {
     ...header,
-    time: header.time.toString(),
+    lastBlockId: serializeBlockId(header.lastBlockId),
+    time: toRfc3339WithNanoseconds(header.time),
     blockId: serializeBlockId(header.lastBlockId),
     lastCommitHash: Buffer.from(header.lastCommitHash).toString("hex"),
     dataHash: Buffer.from(header.dataHash).toString("hex"),
@@ -58,11 +65,13 @@ export const serializeCommit = (commit: Commit): SerializedCommit => {
     blockId: serializeBlockId(commit.blockId),
     signatures: commit.signatures.map((sig) => {
       return {
-        blockIdFlag: BlockIDFlag,
+        blockIdFlag: sig.blockIdFlag,
         validatorAddress: sig.validatorAddress
           ? Buffer.from(sig.validatorAddress).toString("hex")
           : null,
-        timestamp: sig.timestamp ? sig.timestamp.toISOString() : null,
+        timestamp: sig.timestamp
+          ? toRfc3339WithNanoseconds(sig.timestamp)
+          : null,
         signature: sig.signature
           ? Buffer.from(sig.signature).toString("hex")
           : null,
@@ -106,7 +115,7 @@ export const deserializeHeader = (
 ): Header => {
   return {
     ...serializedHeader,
-    time: new Date(serializedHeader.time),
+    time: fromRfc3339WithNanoseconds(serializedHeader.time),
     lastBlockId: deserializeBlockId(serializedHeader.blockId),
     lastCommitHash: Buffer.from(serializedHeader.lastCommitHash, "hex"),
     dataHash: Buffer.from(serializedHeader.dataHash, "hex"),
@@ -131,8 +140,10 @@ export const deserializeCommit = (
         blockIdFlag: sig.blockIdFlag,
         validatorAddress: sig.validatorAddress
           ? Buffer.from(sig.validatorAddress, "hex")
-          : null,
-        timestamp: sig.timestamp ? new Date(sig.timestamp) : null,
+          : Buffer.from(""),
+        timestamp: sig.timestamp
+          ? fromRfc3339WithNanoseconds(sig.timestamp)
+          : new Date("0001-01-01T00:00:00Z"),
         signature: sig.signature ? Buffer.from(sig.signature, "hex") : null,
       };
     }),
