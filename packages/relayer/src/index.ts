@@ -11,6 +11,11 @@ import { BridgeParsedData } from "./@types/interfaces/cosmwasm";
 import { Queue } from "bullmq";
 import { CosmosWorkerJob, TonWorkerJob } from "./worker";
 
+//@ts-ignore
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
+
 const connection = {
   host: envConfig.REDIS_HOST,
   port: envConfig.REDIS_PORT,
@@ -22,8 +27,8 @@ const tonQueue = new Queue("ton", {
 
 const cosmosQueue = new Queue("cosmos", { connection });
 
-// TODO: may transform to an express app not only worker
-async function main() {
+export async function relay() {
+  console.log("Start relaying process");
   const duckDb = await DuckDb.getInstance(envConfig.CONNECTION_STRING);
   const blockOffset = new CosmosBlockOffset(duckDb);
   await blockOffset.createTable();
@@ -38,25 +43,20 @@ async function main() {
     interval: envConfig.SYNC_INTERVAL,
     queryTags: [],
   };
-
   if (offset < envConfig.SYNC_BLOCK_OFFSET) {
     syncDataOpt.offset = envConfig.SYNC_BLOCK_OFFSET;
   }
-
   if (envConfig.BRIDGE_WASM_ADDRESS === "") {
     throw new Error("BRIDGE_WASM_ADDRESS is required");
   }
-
   const cosmosWatcher = createCosmosBridgeWatcher(
     envConfig.BRIDGE_WASM_ADDRESS,
     syncDataOpt
   );
   // UPDATE BLOCK OFFSET TO DATABASE
-  const database = await DuckDb.getInstance(envConfig.CONNECTION_STRING);
-  const blockOffSet = new CosmosBlockOffset(database);
   cosmosWatcher.on(CosmwasmWatcherEvent.SYNC_DATA, async (chunk: Txs) => {
     const { offset: newOffset } = chunk;
-    await blockOffSet.updateBlockOffset(newOffset);
+    await blockOffset.updateBlockOffset(newOffset);
     console.log("Update new offset at", newOffset);
   });
   // LISTEN ON THE PARSED_DATA FROM WATCHER
@@ -64,7 +64,6 @@ async function main() {
     CosmwasmWatcherEvent.PARSED_DATA,
     async (data: BridgeParsedData) => {
       const { submitData, submittedTxs } = data;
-
       // Submitting serialized data to cosmwasm bridge
       const submitDataQueue = submitData.map((tx) => {
         return {
@@ -73,12 +72,12 @@ async function main() {
         };
       });
       await cosmosQueue.addBulk(submitDataQueue);
-
       // Relaying submitted transaction by relayer
       const updateClientDataPromise = submittedTxs.map((tx) =>
         createUpdateClientData(envConfig.COSMOS_RPC_URL, tx.height)
       );
       const updateClientData = await Promise.all(updateClientDataPromise);
+      // TODO: FORMAT ALL UINT8ARRAY TO HEX BEFORE ADD TO QUEUE
       const relayDataQueue = updateClientData.map((clientData, i) => {
         return {
           name: TonWorkerJob.RelayCosmWasmData,
@@ -92,9 +91,6 @@ async function main() {
       await tonQueue.addBulk(relayDataQueue);
     }
   );
+  console.log("Start watching cosmos chain");
+  await cosmosWatcher.start();
 }
-
-main().catch((error) => {
-  console.log(error);
-  process.exit(1);
-});

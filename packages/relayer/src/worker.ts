@@ -16,6 +16,7 @@ import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { TxWasm } from "./@types/common";
 import { getMerkleProofs } from "./contracts/ton/utils";
 import { BridgeData } from "./@types/interfaces/cosmwasm";
+import { ReadWriteStateInterface } from "./contracts/cosmwasm/mock";
 
 export type RelayCosmwasmData = {
   data: string;
@@ -40,29 +41,30 @@ export const updateBlock = async (
   clientData: LightClientData
 ) => {
   const { header, lastCommit, validators } = clientData;
-
-  await lightClient.sendVerifyBlockHash(
+  console.log(header.time);
+  const result = await lightClient.sendVerifyBlockHash(
     sender,
     {
-      appHash: Buffer.from(header.appHash).toString("hex"),
+      appHash: header.appHash,
       chainId: header.chainId,
-      consensusHash: Buffer.from(header.consensusHash).toString("hex"),
-      dataHash: Buffer.from(header.dataHash).toString("hex"),
-      evidenceHash: Buffer.from(header.evidenceHash).toString("hex"),
-      height: BigInt(header.height),
+      consensusHash: header.consensusHash,
+      dataHash: header.dataHash,
+      evidenceHash: header.evidenceHash,
+      height: header.height,
       lastBlockId: header.lastBlockId,
-      lastCommitHash: Buffer.from(header.lastCommitHash).toString("hex"),
-      lastResultsHash: Buffer.from(header.lastResultsHash).toString("hex"),
-      validatorHash: Buffer.from(header.validatorsHash).toString("hex"),
-      nextValidatorHash: Buffer.from(header.nextValidatorsHash).toString("hex"),
-      proposerAddress: Buffer.from(header.proposerAddress).toString("hex"),
-      time: header.time.toISOString(),
+      lastCommitHash: header.lastCommitHash,
+      lastResultsHash: header.lastResultsHash,
+      validatorHash: header.validatorsHash,
+      nextValidatorHash: header.nextValidatorsHash,
+      proposerAddress: header.proposerAddress,
+      time: header.time.toString(),
       version: header.version,
     },
     [...validators],
     lastCommit,
     { value: toNano("2") }
   );
+  console.log(result);
 };
 
 export const getTxAndProofByHash = async (
@@ -118,11 +120,17 @@ export const createTonWorker = (
       switch (job.name) {
         case TonWorkerJob.RelayCosmWasmData: {
           const height = await lightClient.getHeight();
+          console.log(height);
           if (height < data.clientData.header.height) {
-            console.log("Updating block:", data.clientData.header.height);
-            await updateBlock(lightClient, sender, data.clientData);
             console.log(
-              "Updating block:",
+              "[TON-WORKER] Updating block:",
+              data.clientData.header.height
+            );
+            await updateBlock(lightClient, sender, data.clientData).catch(
+              console.error
+            );
+            console.log(
+              "[TON-WORKER] Updating block:",
               data.clientData.header.height,
               "successfully"
             );
@@ -170,7 +178,7 @@ export enum CosmosWorkerJob {
 
 export const createCosmosWorker = (
   connection: ConnectionOptions,
-  bridgeWasm: any
+  bridgeWasm: ReadWriteStateInterface
 ) => {
   const cosmosWorker = new Worker(
     "cosmos",
@@ -178,8 +186,9 @@ export const createCosmosWorker = (
       const data = job.data;
       switch (job.name) {
         case CosmosWorkerJob.SubmitData: {
+          console.log("Submitting data to cosmos bridge");
           const result = await bridgeWasm.submit(data);
-          console.log(result.txHash);
+          console.log("Submit successfully at", result.transactionHash);
           break;
         }
         default:

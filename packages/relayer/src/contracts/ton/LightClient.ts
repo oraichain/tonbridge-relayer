@@ -27,18 +27,18 @@ import { TxWasm } from "@src/@types/common";
 export type BlockHeader = {
   version: Version;
   chainId: string;
-  height: bigint;
+  height: number;
   time: string;
   lastBlockId: BlockId;
-  proposerAddress: string;
-  lastCommitHash: string;
-  dataHash: string;
-  validatorHash: string;
-  nextValidatorHash: string;
-  consensusHash: string;
-  appHash: string;
-  lastResultsHash: string;
-  evidenceHash: string;
+  proposerAddress: Uint8Array;
+  lastCommitHash: Uint8Array;
+  dataHash: Uint8Array;
+  validatorHash: Uint8Array;
+  nextValidatorHash: Uint8Array;
+  consensusHash: Uint8Array;
+  appHash: Uint8Array;
+  lastResultsHash: Uint8Array;
+  evidenceHash: Uint8Array;
 };
 
 export type LightClientConfig = {
@@ -155,7 +155,7 @@ export class LightClient implements Contract {
   ) {
     const data = beginCell()
       .storeRef(getBlockHashCell(header))
-      .storeRef(getValidatorsCell(validators)!)
+      .storeRef(getValidatorsCell(validators))
       .storeRef(getCommitCell(commit))
       .endCell();
 
@@ -294,7 +294,7 @@ const getCommitCell = (commit: Commit) => {
     const cell = beginCell()
       .storeUint(signature.blockIdFlag, 8)
       .storeBuffer(Buffer.from(signature.validatorAddress))
-      .storeRef(getTimeSlice(signature.timestamp.toISOString()))
+      .storeRef(getTimeSlice(signature.timestamp.toString()))
       .storeBuffer(
         signature.signature ? Buffer.from(signature.signature) : Buffer.from("")
       )
@@ -369,30 +369,25 @@ const getBlockHashCell = (header: BlockHeader) => {
     .storeUint(header.height, 32)
     .storeRef(getTimeSlice(header.time))
     .storeRef(getBlockSlice(header.lastBlockId))
-    .storeBuffer(Buffer.from(header.proposerAddress, "hex"));
+    .storeBuffer(Buffer.from(header.proposerAddress));
 
   const hashCell1 = beginCell()
-    .storeRef(
-      beginCell().storeBuffer(Buffer.from(header.lastCommitHash, "hex"))
-    )
-    .storeRef(beginCell().storeBuffer(Buffer.from(header.dataHash, "hex")))
-    .storeRef(beginCell().storeBuffer(Buffer.from(header.validatorHash, "hex")))
-    .storeRef(
-      beginCell().storeBuffer(Buffer.from(header.nextValidatorHash, "hex"))
-    );
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.lastCommitHash)))
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.dataHash)))
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.validatorHash)))
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.nextValidatorHash)));
 
   const hashCell2 = beginCell()
-    .storeRef(beginCell().storeBuffer(Buffer.from(header.consensusHash, "hex")))
-    .storeRef(beginCell().storeBuffer(Buffer.from(header.appHash, "hex")))
-    .storeRef(
-      beginCell().storeBuffer(Buffer.from(header.lastResultsHash, "hex"))
-    )
-    .storeRef(beginCell().storeBuffer(Buffer.from(header.evidenceHash, "hex")));
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.consensusHash)))
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.appHash)))
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.lastResultsHash)))
+    .storeRef(beginCell().storeBuffer(Buffer.from(header.evidenceHash)));
 
   const dsCell = beginCell()
     .storeRef(cell)
     .storeRef(hashCell1)
     .storeRef(hashCell2)
     .endCell();
-  return dsCell!;
+
+  return dsCell;
 };
