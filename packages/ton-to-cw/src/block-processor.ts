@@ -9,6 +9,9 @@ import { Functions, liteServer_BlockData } from "ton-lite-client/dist/schema";
 import TonWeb from "tonweb";
 
 export default class TonBlockProcessor {
+  // cache validator set so we don't have to call the contract every few seconds
+  private allValidators: UserFriendlyValidator[] = [];
+
   constructor(
     protected readonly validator: TonbridgeValidatorInterface,
     protected readonly liteClient: LiteClient,
@@ -69,7 +72,7 @@ export default class TonBlockProcessor {
 
     while (true) {
       const validatorsTemp = await this.validator.getValidators({
-        limit: 30,
+        limit: 100,
         startAfter,
       });
       if (validatorsTemp.length === 0) {
@@ -141,26 +144,19 @@ export default class TonBlockProcessor {
     console.log(`verified masterchain block ${blockId.seqno} successfully`);
   }
 
-  async verifyMasterchainKeyBlock(seqno: number) {
-    const { rawBlockData } = await TonBlockProcessor.queryKeyBlock(
-      seqno,
-      this.liteClient
-    );
-
+  async verifyMasterchainKeyBlock(rawBlockData: liteServer_BlockData) {
     const isBlockVerified = await this.validator.isVerifiedBlock({
       rootHash: rawBlockData.id.rootHash.toString("hex"),
     });
 
-    console.log("is block verified: ", isBlockVerified);
-
     if (isBlockVerified) return;
-    const boc = rawBlockData.data.toString("hex");
-    const prepareResult = await this.validator.prepareNewKeyBlock({
-      keyblockBoc: boc,
+    const keyblockBoc = rawBlockData.data.toString("hex");
+    await this.validator.prepareNewKeyBlock({
+      keyblockBoc,
     });
-    console.log("prepare result: ", prepareResult);
-    const vdata = await this.getMasterchainBlockValSignatures(seqno);
-    console.log("vdata: ", vdata);
+    const vdata = await this.getMasterchainBlockValSignatures(
+      rawBlockData.id.seqno
+    );
 
     await this.validator.verifyKeyBlock({
       rootHash: rawBlockData.id.rootHash.toString("hex"),
@@ -169,6 +165,50 @@ export default class TonBlockProcessor {
     });
     console.log(
       `verified masterchain keyblock ${rawBlockData.id.seqno} successfully`
+    );
+  }
+
+  async storeKeyBlockNextValSet(
+    rawBlockData: liteServer_BlockData,
+    parsedBlock: ParsedBlock
+  ) {
+    const nextValidators = parsedBlock.extra.custom.config.config.map.get("24");
+    // if empty then we do nothing and wait til next end of consensus
+    if (!nextValidators) {
+      this.allValidators = [];
+      return;
+    }
+
+    const nextValSetFirstPubkey = Buffer.from(
+      nextValidators.next_validators.list.map.get("0").public_key.pubkey
+    ).toString("hex");
+    const allValidators =
+      this.allValidators.length > 0
+        ? this.allValidators
+        : await this.queryAllValidators();
+
+    // if we already updated the keyblock with next valset -> cache the valset and ignore
+    if (allValidators.some((val) => val.pubkey === nextValSetFirstPubkey)) {
+      this.allValidators = allValidators;
+      return;
+    }
+
+    const keyblockBoc = rawBlockData.data.toString("hex");
+    await this.validator.prepareNewKeyBlock({
+      keyblockBoc,
+    });
+    const vdata = await this.getMasterchainBlockValSignatures(
+      rawBlockData.id.seqno
+    );
+
+    await this.validator.verifyKeyBlock({
+      rootHash: rawBlockData.id.rootHash.toString("hex"),
+      fileHash: rawBlockData.id.fileHash.toString("hex"),
+      vdata,
+    });
+
+    console.log(
+      `Updated keyblock ${rawBlockData.id.seqno} with new validator set successfully`
     );
   }
 

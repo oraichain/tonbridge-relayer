@@ -91,7 +91,7 @@ export default class TonTxProcessor {
   async processTransactions() {
     const transactions = await this.queryUnprocessedTransactions();
     console.log("unprocessed transactions: ", transactions.length);
-    // since we query our transactions from latest to earliest -> process the last txs first
+    // since we query our transactions from latest to earliest -> process the latest txs first
     for (let i = transactions.length - 1; i >= 0; i--) {
       const tx = transactions[i];
       try {

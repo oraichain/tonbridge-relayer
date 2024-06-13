@@ -2035,11 +2035,11 @@
   integrity sha512-fMY/QOzO/afPlAVkLGH1bcpJTs6V/URrJju2r4UoE9f5HUWC/6OC6+H5dWuIgq26frp8wjH23mNCQAlmHzji8g==
 
 "@oraichain/tonbridge-contracts-build@latest":
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/@oraichain/tonbridge-contracts-build/-/tonbridge-contracts-build-1.0.2.tgz#b7fba1e847d1f88e2aebc2ed55fb33cfb9e2b464"
-  integrity sha512-T//2OM8kpsoTnw12manQgoUinqD5kpU4r/zByvu+FLrJBnC93pKn02Z7z9MQ6x2WA5O7xS+5WwiQa0w6/vBkbw==
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/@oraichain/tonbridge-contracts-build/-/tonbridge-contracts-build-1.0.3.tgz#6b7d2127a8d43569d6e044fbf1e3ebd3417ec975"
+  integrity sha512-bHp20v8K/Ig5F5z8cfrfOTvnH07d/ap0qlqY+rPGvTuwAmzk1XwLULQEgHjk1E8qiGJtajnLfAhbhp1PIbj4kQ==
 
-"@oraichain/tonbridge-contracts-sdk@latest":
+"@oraichain/tonbridge-contracts-sdk@^1.0.0":
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/@oraichain/tonbridge-contracts-sdk/-/tonbridge-contracts-sdk-1.0.0.tgz#a01d8966c6c52a2b18f28a6377238c8a01363cf8"
   integrity sha512-1UBCHP+CbEoKy1H9YrM+Y+EQ4EMuIKzB2okg0S/jHlTIB9eOFHt3O9UFTcWgTQ0/992G7bGHLPIwyPZ73OqTog==

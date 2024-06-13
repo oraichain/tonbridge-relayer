@@ -45,8 +45,15 @@ export async function relay(data: {
     while (true) {
       try {
         const latestMasterchainBlock = await liteClient.getMasterchainInfo();
-        await blockProcessor.verifyMasterchainKeyBlock(
-          latestMasterchainBlock.last.seqno
+        const { rawBlockData, parsedBlock } =
+          await TonBlockProcessor.queryKeyBlock(
+            latestMasterchainBlock.last.seqno,
+            liteClient
+          );
+        await blockProcessor.verifyMasterchainKeyBlock(rawBlockData);
+        await blockProcessor.storeKeyBlockNextValSet(
+          rawBlockData,
+          parsedBlock
         );
         await txProcessor.processTransactions();
       } catch (error) {
