@@ -18,6 +18,14 @@ export default class TonBlockProcessor {
     protected readonly tonweb: TonWeb
   ) {}
 
+  async queryKeyBlock(masterChainSeqNo: number) {
+    return TonBlockProcessor.queryKeyBlock(masterChainSeqNo, this.liteClient);
+  }
+
+  async getMasterchainInfo() {
+    return this.liteClient.getMasterchainInfo();
+  }
+
   static queryKeyBlock = async (
     masterChainSeqNo: number,
     client: LiteClient

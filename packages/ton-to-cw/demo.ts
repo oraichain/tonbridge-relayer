@@ -18,7 +18,8 @@ import {
 } from "ton-lite-client";
 import TonWeb from "tonweb";
 import TonBlockProcessor from "./src/block-processor";
-import { relay } from "./src/index";
+import TonTxProcessor from "./src/tx-processor";
+import TonToCwRelayer from "./src/index";
 
 export function intToIP(int: number) {
   var part1 = int & 255;
@@ -124,12 +125,19 @@ export function intToIP(int: number) {
     remoteDecimals: 6,
   });
 
-  relay({
+  const blockProcessor = new TonBlockProcessor(validator, liteClient, tonWeb);
+  const txProcessor = new TonTxProcessor(
     validator,
     bridge,
-    tonweb: tonWeb,
     liteClient,
-    jettonBridgeAddress: "EQARXqu9hEzxsSP5ZdI5n3gv5XxFJQu8uPvEt0IJOwadzfA0",
-    oldestProcessedTxHash: "dhNSr2GdAhdqkEUgilyb9N8PId27TEqXfXGFRhWi8As="
-  });
+    blockProcessor,
+    "EQARXqu9hEzxsSP5ZdI5n3gv5XxFJQu8uPvEt0IJOwadzfA0",
+    "dhNSr2GdAhdqkEUgilyb9N8PId27TEqXfXGFRhWi8As="
+  );
+
+  const relayer = new TonToCwRelayer()
+    .withBlockProcessor(blockProcessor)
+    .withTxProcessor(txProcessor);
+
+  relayer.relay();
 })();

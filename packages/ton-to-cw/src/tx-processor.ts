@@ -34,12 +34,15 @@ export default class TonTxProcessor {
     protected readonly validator: TonbridgeValidatorInterface,
     protected readonly bridge: TonbridgeBridgeInterface,
     protected readonly liteClient: LiteClient,
-    protected readonly jettonBridgeAddress: string,
     protected readonly blockProcessor: TonBlockProcessor,
-    protected readonly tonCenterV3APIBaseUrl: string = "https://toncenter.com/api/v3",
+    protected readonly jettonBridgeAddress: string,
     protected latestProcessedTxHash: StringBase64 = ""
   ) {
-    this.tonCenterV3 = new TonCenterV3API(tonCenterV3APIBaseUrl);
+    this.tonCenterV3 = new TonCenterV3API();
+  }
+
+  updateTonCenterV3BaseUrl(baseUrl: string) {
+    this.tonCenterV3 = new TonCenterV3API(baseUrl);
   }
 
   private async queryUnprocessedTransactions() {

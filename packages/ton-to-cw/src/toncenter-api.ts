@@ -1,5 +1,5 @@
 export default class TonCenterV3API {
-  constructor(public readonly baseUrl: string) {}
+  constructor(public readonly baseUrl: string = "https://toncenter.com/api/v3") {}
 
   async queryTransactions(contractAddr: string, limit: number, offset: number) {
     return fetch(
