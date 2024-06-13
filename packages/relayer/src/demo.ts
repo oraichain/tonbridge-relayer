@@ -183,9 +183,7 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
       console.log(
         "[TON-WORKER-EVENT-COMPLETED] Success transferTo",
         to.toString(),
-        "amount",
         amount,
-        "denom",
         denom.toString(),
         "src::cosmos"
       );
@@ -206,9 +204,7 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
       console.log(
         "[TON-WORKER-EVENT-COMPLETED] Success transferTo",
         to.toString(),
-        "amount",
         amount,
-        "denom",
         denom.toString(),
         "src::ton"
       );
