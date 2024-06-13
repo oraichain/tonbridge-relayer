@@ -44,7 +44,7 @@ export default class TonTxProcessor {
 
   private async queryUnprocessedTransactions() {
     let offset = 0;
-    let limit = 2;
+    let limit = 100;
     let transactions: any[] = [];
     let newTransactions: any[] = [];
     while (true) {

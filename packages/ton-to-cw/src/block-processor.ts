@@ -119,6 +119,7 @@ export default class TonBlockProcessor {
     if (isBlockVerified) return;
 
     const vdata = await this.getMasterchainBlockValSignatures(seqno);
+    console.log("vdata length: ", vdata.length);
     const blockHeader = await this.liteClient.getBlockHeader(blockId);
     const blockInfo = await this.liteClient.engine.query(
       Functions.liteServer_getBlock,
@@ -150,10 +151,16 @@ export default class TonBlockProcessor {
       rootHash: rawBlockData.id.rootHash.toString("hex"),
     });
 
+    console.log("is block verified: ", isBlockVerified);
+
     if (isBlockVerified) return;
     const boc = rawBlockData.data.toString("hex");
-    await this.validator.prepareNewKeyBlock({ keyblockBoc: boc });
+    const prepareResult = await this.validator.prepareNewKeyBlock({
+      keyblockBoc: boc,
+    });
+    console.log("prepare result: ", prepareResult);
     const vdata = await this.getMasterchainBlockValSignatures(seqno);
+    console.log("vdata: ", vdata);
 
     await this.validator.verifyKeyBlock({
       rootHash: rawBlockData.id.rootHash.toString("hex"),

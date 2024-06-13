@@ -10,18 +10,12 @@ import {
   TonbridgeBridgeClient,
   TonbridgeValidatorClient,
 } from "@oraichain/tonbridge-contracts-sdk";
-import { ValidatorSignature } from "@oraichain/tonbridge-utils";
-import { Address } from "@ton/core";
 import {
   LiteClient,
   LiteEngine,
   LiteRoundRobinEngine,
   LiteSingleEngine,
 } from "ton-lite-client";
-import {
-  Functions,
-  liteServer_masterchainInfoExt,
-} from "ton-lite-client/dist/schema";
 import TonWeb from "tonweb";
 import TonBlockProcessor from "./src/block-processor";
 import { relay } from "./src/index";
@@ -48,7 +42,7 @@ export function intToIP(int: number) {
     "https://ton.org/global.config.json"
   ).then((data) => data.json());
   // Personal choice. Can choose a different index if needed
-  const server = liteservers[0];
+  const server = liteservers[2];
 
   const engines: LiteEngine[] = [];
   engines.push(
@@ -135,6 +129,7 @@ export function intToIP(int: number) {
     bridge,
     tonweb: tonWeb,
     liteClient,
-    jettonBridgeAddress: "EQD-YRkuEQs7grDLTMQ1MdYxRmwTTAVsdiY1g1C7O2AfeMgN",
+    jettonBridgeAddress: "EQARXqu9hEzxsSP5ZdI5n3gv5XxFJQu8uPvEt0IJOwadzfA0",
+    oldestProcessedTxHash: "dhNSr2GdAhdqkEUgilyb9N8PId27TEqXfXGFRhWi8As="
   });
 })();
