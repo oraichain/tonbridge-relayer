@@ -15,7 +15,11 @@ import {
   ICosmwasmParser,
 } from "./@types/interfaces/cosmwasm";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
-import { envConfig } from "./config";
+import { serializeCommit, serializeHeader, serializeValidator } from "./utils";
+import {
+  LightClientData,
+  SerializedTx,
+} from "@src/@types/interfaces/cosmwasm/serialized";
 
 export const enum BRIDGE_ACTION {
   TRANSFER_TO_TON = "transfer_to_ton",
@@ -164,7 +168,7 @@ export class CosmwasmWatcher<T> extends EventEmitter {
 export const createUpdateClientData = async (
   rpcUrl: string,
   height: number
-) => {
+): Promise<LightClientData> => {
   const tendermintClient = await Tendermint34Client.connect(rpcUrl);
   const [
     {
@@ -183,7 +187,12 @@ export const createUpdateClientData = async (
     }),
   ]);
 
-  return { validators, lastCommit, header, txs };
+  return {
+    validators: validators.map(serializeValidator),
+    lastCommit: serializeCommit(lastCommit),
+    header: serializeHeader(header),
+    txs: txs.map((tx) => Buffer.from(tx).toString("hex")) as SerializedTx[],
+  };
 };
 
 export const createCosmosBridgeWatcher = (

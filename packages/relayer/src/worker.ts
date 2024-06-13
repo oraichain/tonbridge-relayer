@@ -4,19 +4,19 @@ import { beginCell, OpenedContract, Sender, toNano } from "@ton/core";
 import { SandboxContract } from "@ton/sandbox";
 import { LightClient } from "./contracts/ton/LightClient";
 import { BridgeAdapter } from "./contracts/ton/BridgeAdapter";
-import {
-  Commit,
-  Header,
-  Tendermint34Client,
-  Validator,
-} from "@cosmjs/tendermint-rpc";
+import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 import { decodeTxRaw, Registry } from "@cosmjs/proto-signing";
 import { defaultRegistryTypes } from "@cosmjs/stargate";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { TxWasm } from "./@types/common";
 import { getMerkleProofs } from "./contracts/ton/utils";
-import { BridgeData } from "./@types/interfaces/cosmwasm";
+import { BridgeData, LightClientData } from "./@types/interfaces/cosmwasm";
 import { ReadWriteStateInterface } from "./contracts/cosmwasm/mock";
+import {
+  deserializeCommit,
+  deserializeHeader,
+  deserializeValidator,
+} from "./utils";
 
 export type RelayCosmwasmData = {
   data: string;
@@ -24,15 +24,12 @@ export type RelayCosmwasmData = {
   txHash: string;
 };
 
-export type LightClientData = {
-  validators: readonly Validator[];
-  lastCommit: Commit;
-  header: Header;
-  txs: Uint8Array[];
-};
-
 export enum TonWorkerJob {
   RelayCosmWasmData = "RelayCosmWasmData",
+}
+
+export enum CosmosWorkerJob {
+  SubmitData = "SubmitData",
 }
 
 export const updateBlock = async (
@@ -41,27 +38,12 @@ export const updateBlock = async (
   clientData: LightClientData
 ) => {
   const { header, lastCommit, validators } = clientData;
-  console.log(header.time);
+
   const result = await lightClient.sendVerifyBlockHash(
     sender,
-    {
-      appHash: header.appHash,
-      chainId: header.chainId,
-      consensusHash: header.consensusHash,
-      dataHash: header.dataHash,
-      evidenceHash: header.evidenceHash,
-      height: header.height,
-      lastBlockId: header.lastBlockId,
-      lastCommitHash: header.lastCommitHash,
-      lastResultsHash: header.lastResultsHash,
-      validatorHash: header.validatorsHash,
-      nextValidatorHash: header.nextValidatorsHash,
-      proposerAddress: header.proposerAddress,
-      time: header.time.toString(),
-      version: header.version,
-    },
-    [...validators],
-    lastCommit,
+    deserializeHeader(header),
+    validators.map(deserializeValidator),
+    deserializeCommit(lastCommit),
     { value: toNano("2") }
   );
   console.log(result);
@@ -171,10 +153,6 @@ export const createTonWorker = (
   );
   return tonWorker;
 };
-
-export enum CosmosWorkerJob {
-  SubmitData = "SubmitData",
-}
 
 export const createCosmosWorker = (
   connection: ConnectionOptions,
