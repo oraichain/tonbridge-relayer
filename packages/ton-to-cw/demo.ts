@@ -132,7 +132,7 @@ export function intToIP(int: number) {
     liteClient,
     blockProcessor,
     "EQARXqu9hEzxsSP5ZdI5n3gv5XxFJQu8uPvEt0IJOwadzfA0",
-    "dhNSr2GdAhdqkEUgilyb9N8PId27TEqXfXGFRhWi8As="
+    "4541ed7216e76f61dcf1c9d10a2b3ab033e3acea5487c6dd81ffa94821697f24"
   );
 
   const relayer = new TonToCwRelayer()

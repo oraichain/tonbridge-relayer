@@ -2,33 +2,15 @@ import {
   TonbridgeBridgeInterface,
   TonbridgeValidatorInterface,
 } from "@oraichain/tonbridge-contracts-sdk";
-import { Address } from "@ton/core";
-import { StringBase64 } from "src/@types/block";
+import { Cell, address, loadTransaction } from "@ton/core";
+import { StringBase64, TransactionWithBlockId } from "src/@types/block";
 import { LiteClient } from "ton-lite-client";
 import TonBlockProcessor from "./block-processor";
 import { setTimeout } from "timers/promises";
-import TonCenterV3API from "./toncenter-api";
-
-function hexToSignedDecimal(hexString: string, bitLength: 64) {
-  // Convert hex string to BigInt
-  let bigint = BigInt(`0x${hexString}`);
-
-  // Calculate the maximum value for the given bit length
-  let maxVal = BigInt(2 ** bitLength);
-
-  // Calculate the threshold for negative numbers
-  let threshold = maxVal / BigInt(2);
-
-  // If the number is greater than or equal to the threshold, it's negative
-  if (bigint >= threshold) {
-    bigint -= maxVal;
-  }
-
-  return bigint.toString(10);
-}
 
 export default class TonTxProcessor {
-  private tonCenterV3: TonCenterV3API;
+  private limitPerTxQuery = 100; // limit per query
+  private maxUnprocessTxs = 500; // this makes sure we dont process too many txs at once causing delays
 
   constructor(
     protected readonly validator: TonbridgeValidatorInterface,
@@ -37,54 +19,61 @@ export default class TonTxProcessor {
     protected readonly blockProcessor: TonBlockProcessor,
     protected readonly jettonBridgeAddress: string,
     protected latestProcessedTxHash: StringBase64 = ""
-  ) {
-    this.tonCenterV3 = new TonCenterV3API();
-  }
-
-  updateTonCenterV3BaseUrl(baseUrl: string) {
-    this.tonCenterV3 = new TonCenterV3API(baseUrl);
-  }
+  ) {}
 
   private async queryUnprocessedTransactions() {
-    let offset = 0;
-    let limit = 100;
-    let transactions: any[] = [];
-    let newTransactions: any[] = [];
+    let transactions: TransactionWithBlockId[] = [];
+    const jettonAddr = address(this.jettonBridgeAddress);
+    const masterchainInfo = await this.liteClient.getMasterchainInfo();
+    const accState = await this.liteClient.getAccountState(
+      jettonAddr,
+      masterchainInfo.last
+    );
+    let offset = {
+      hash: accState.lastTx.hash.toString(16),
+      lt: accState.lastTx.lt.toString(10),
+    };
     while (true) {
-      const result = await this.tonCenterV3.queryTransactions(
-        this.jettonBridgeAddress,
-        limit,
-        offset
+      console.log("offset: ", offset);
+      const rawTxs = await this.liteClient.getAccountTransactions(
+        jettonAddr,
+        offset.lt,
+        Buffer.from(offset.hash, "hex"),
+        this.limitPerTxQuery
       );
-      if (!result.transactions) {
-        await setTimeout(2000);
-        continue;
-      }
-      const tempTransactions: any[] = result.transactions;
+      const txs = Cell.fromBoc(rawTxs.transactions).map((cell, i) => ({
+        tx: loadTransaction(cell.asSlice()),
+        blockId: rawTxs.ids[i],
+      }));
 
       if (!this.latestProcessedTxHash) {
-        transactions.push(...tempTransactions);
+        transactions.push(...txs);
         if (transactions.length > 0)
-          this.latestProcessedTxHash = transactions[0].hash;
+          this.latestProcessedTxHash = transactions[0].tx
+            .hash()
+            .toString("hex");
         break;
       }
 
-      const indexOf = tempTransactions.findIndex(
-        (tx) => tx.hash === this.latestProcessedTxHash
+      const indexOf = txs.findIndex(
+        (tx) => tx.tx.hash().toString("hex") === this.latestProcessedTxHash
       );
       if (indexOf === -1) {
-        newTransactions.push(...tempTransactions);
+        transactions.push(...txs);
         // increase offset and continue querying txs until we find our oldest transaction that we can remember
-        offset += limit;
+        offset = {
+          hash: txs[txs.length - 1].tx.prevTransactionHash.toString(16),
+          lt: txs[txs.length - 1].tx.prevTransactionLt.toString(10),
+        };
         await setTimeout(2000);
         continue;
       } else {
         // only push more txs if the latest is not the first index to avoid redundancy
-        if (indexOf > 0)
-          newTransactions.push(...tempTransactions.slice(0, indexOf));
-        transactions.unshift(...newTransactions.reverse());
+        if (indexOf > 0) transactions.push(...txs.slice(0, indexOf));
         if (transactions.length > 0)
-          this.latestProcessedTxHash = transactions[0].hash;
+          this.latestProcessedTxHash = transactions[0].tx
+            .hash()
+            .toString("hex");
         break;
       }
     }
@@ -95,8 +84,7 @@ export default class TonTxProcessor {
     const transactions = await this.queryUnprocessedTransactions();
     console.log("unprocessed transactions: ", transactions.length);
     // since we query our transactions from latest to earliest -> process the latest txs first
-    for (let i = transactions.length - 1; i >= 0; i--) {
-      const tx = transactions[i];
+    for (const tx of transactions) {
       try {
         await this.processTransaction(tx);
       } catch (error) {
@@ -105,51 +93,41 @@ export default class TonTxProcessor {
     }
   }
 
-  async processTransaction(tx: any) {
-    const { block_ref, mc_block_seqno, hash, lt } = tx;
-    const shard = hexToSignedDecimal(block_ref.shard, 64);
-    const shardInfo = await this.liteClient.lookupBlockByID({
-      ...block_ref,
-      shard,
-    });
-    const transaction = await this.liteClient.getAccountTransaction(
-      Address.parse(this.jettonBridgeAddress),
-      lt,
-      shardInfo.id
-    );
-
+  async processTransaction(tx: TransactionWithBlockId) {
+    const txHashHex = tx.tx.hash().toString("hex");
     const isTxProcessed = await this.bridge.isTxProcessed({
-      txHash: Buffer.from(hash, "base64").toString("hex"),
+      txHash: txHashHex,
     });
-    if (isTxProcessed) {
-      this.latestProcessedTxHash = hash;
-      return;
-    }
+    if (isTxProcessed) return;
 
-    const isShardVerified = await this.validator.isVerifiedBlock({
-      rootHash: shardInfo.id.rootHash.toString("hex"),
-    });
-    // try verifying required blocks first before processing the transaction
-    if (!isShardVerified) {
-      await this.blockProcessor.verifyMasterchainBlock(mc_block_seqno);
+    // it means this tx is in a shard block -> we verify shard blocks along with materchain block
+    if (tx.blockId.workchain !== -1) {
       await this.blockProcessor.verifyShardBlocks(
-        block_ref.workchain,
-        block_ref.seqno,
-        shard
+        tx.blockId.workchain,
+        tx.blockId.seqno,
+        tx.blockId.shard
       );
+    } else {
+      await this.blockProcessor.verifyMasterchainBlockByBlockId(tx.blockId);
     }
 
+    const jettonAddr = address(this.jettonBridgeAddress);
+    const txWithProof = await this.liteClient.getAccountTransaction(
+      jettonAddr,
+      tx.tx.lt.toString(10),
+      tx.blockId
+    );
     // FIXME: fix the opcode
     await this.bridge.readTransaction({
-      txBoc: transaction.transaction.toString("hex"),
-      txProof: transaction.proof.toString("hex"),
+      txBoc: txWithProof.transaction.toString("hex"),
+      txProof: txWithProof.proof.toString("hex"),
       validatorContractAddr: this.validator.contractAddress,
       opcode:
         "0000000000000000000000000000000000000000000000000000000000000001",
     });
 
     console.log(
-      `Verified tx with hash ${hash} in block ${transaction.id.seqno} successfully`
+      `Verified tx with hash ${txHashHex} in block ${tx.blockId.seqno} successfully`
     );
   }
 }

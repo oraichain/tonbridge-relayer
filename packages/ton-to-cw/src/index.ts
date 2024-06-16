@@ -32,6 +32,10 @@ export default class TonToCwRelayer {
             await this.blockProcessor.queryKeyBlock(
               latestMasterchainBlock.last.seqno
             );
+          console.log(
+            "Prepare to verify masterchain keyblock: ",
+            parsedBlock.info.seq_no
+          );
           await this.blockProcessor.verifyMasterchainKeyBlock(rawBlockData);
           await this.blockProcessor.storeKeyBlockNextValSet(
             rawBlockData,

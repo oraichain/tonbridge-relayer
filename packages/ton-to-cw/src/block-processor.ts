@@ -4,7 +4,7 @@ import TonRocks, {
   ParsedBlock,
   ValidatorSignature,
 } from "@oraichain/tonbridge-utils";
-import { LiteClient } from "ton-lite-client";
+import { BlockID, LiteClient } from "ton-lite-client";
 import { Functions, liteServer_BlockData } from "ton-lite-client/dist/schema";
 import TonWeb from "tonweb";
 
@@ -124,12 +124,16 @@ export default class TonBlockProcessor {
     const blockId = fullBlock.shards.find(
       (blockRes) => blockRes.seqno === seqno
     );
+    await this.verifyMasterchainBlockByBlockId(blockId);
+  }
+
+  async verifyMasterchainBlockByBlockId(blockId: BlockID) {
     const isBlockVerified = await this.validator.isVerifiedBlock({
       rootHash: blockId.rootHash.toString("hex"),
     });
     if (isBlockVerified) return;
 
-    const vdata = await this.getMasterchainBlockValSignatures(seqno);
+    const vdata = await this.getMasterchainBlockValSignatures(blockId.seqno);
     console.log("vdata length: ", vdata.length);
     const blockHeader = await this.liteClient.getBlockHeader(blockId);
     const blockInfo = await this.liteClient.engine.query(
@@ -263,6 +267,10 @@ export default class TonBlockProcessor {
         },
       }
     );
+
+    // gotta verify masterchain block first before verifying shard blocks
+    await this.verifyMasterchainBlockByBlockId(shardProof.masterchainId);
+
     const mcBlockRootHash = shardProof.masterchainId.rootHash.toString("hex");
     await this.validator.verifyShardBlocks({
       mcBlockRootHash: mcBlockRootHash,

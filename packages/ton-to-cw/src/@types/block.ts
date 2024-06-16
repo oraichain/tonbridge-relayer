@@ -1,3 +1,6 @@
+import { Transaction } from "@ton/core";
+import { BlockID } from "ton-lite-client";
+
 export type StringBase64 = string;
 
 export type MinimalBlockIdTonCenterV2 = {
@@ -57,3 +60,8 @@ export type BlockInfoTonCenterV3 = BasicBlockIdTonCenterV2 &
     masterchain_block_ref: MinimalBlockIdTonCenterV2;
     prev_blocks: MinimalBlockIdTonCenterV2[];
   };
+
+export type TransactionWithBlockId = {
+  tx: Transaction,
+  blockId: BlockID
+};
