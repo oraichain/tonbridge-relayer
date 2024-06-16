@@ -102,11 +102,7 @@ export default class TonTxProcessor {
 
     // it means this tx is in a shard block -> we verify shard blocks along with materchain block
     if (tx.blockId.workchain !== -1) {
-      await this.blockProcessor.verifyShardBlocks(
-        tx.blockId.workchain,
-        tx.blockId.seqno,
-        tx.blockId.shard
-      );
+      await this.blockProcessor.verifyShardBlocks(tx.blockId);
     } else {
       await this.blockProcessor.verifyMasterchainBlockByBlockId(tx.blockId);
     }

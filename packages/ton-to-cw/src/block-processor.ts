@@ -245,15 +245,10 @@ export default class TonBlockProcessor {
     return vdata;
   }
 
-  async verifyShardBlocks(workchain: number, seqno: number, shard: string) {
-    const shardInfo = await this.liteClient.lookupBlockByID({
-      seqno,
-      shard,
-      workchain,
-    });
+  async verifyShardBlocks(shardId: BlockID) {
 
     const isBlockVerified = await this.validator.isVerifiedBlock({
-      rootHash: shardInfo.id.rootHash.toString("hex"),
+      rootHash: shardId.rootHash.toString("hex"),
     });
     if (isBlockVerified) return;
 
@@ -263,7 +258,7 @@ export default class TonBlockProcessor {
         kind: "liteServer.getShardBlockProof",
         id: {
           kind: "tonNode.blockIdExt",
-          ...shardInfo.id,
+          ...shardId,
         },
       }
     );
