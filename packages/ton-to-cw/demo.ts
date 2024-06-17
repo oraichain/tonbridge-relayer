@@ -20,6 +20,8 @@ import TonWeb from "tonweb";
 import TonBlockProcessor from "./src/block-processor";
 import TonTxProcessor from "./src/tx-processor";
 import TonToCwRelayer from "./src/index";
+import dotenv from "dotenv";
+dotenv.config()
 
 export function intToIP(int: number) {
   var part1 = int & 255;
@@ -42,23 +44,18 @@ export function intToIP(int: number) {
   const { liteservers } = await fetch(
     "https://ton.org/global.config.json"
   ).then((data) => data.json());
-  // Personal choice. Can choose a different index if needed
-  const server = liteservers[2];
-
   const engines: LiteEngine[] = [];
   engines.push(
-    new LiteSingleEngine({
+    ...liteservers.map((server: any) => new LiteSingleEngine({
       host: `tcp://${intToIP(server.ip)}:${server.port}`,
       publicKey: Buffer.from(server.id.key, "base64"),
-    })
+    }))
   );
   const liteEngine = new LiteRoundRobinEngine(engines);
   const liteClient = new LiteClient({ engine: liteEngine });
-  const tonWeb = new TonWeb(
-    new TonWeb.HttpProvider(undefined, {
-      apiKey: process.env.TONCENTER_API_KEY,
-    })
-  );
+  
+  // should host a private ton http api in production: https://github.com/toncenter/ton-http-api
+  const tonWeb = new TonWeb(new TonWeb.HttpProvider(process.env.TON_HTTP_API_URL));
 
   const masterchainInfo = await liteClient.getMasterchainInfoExt();
   const { rawBlockData } = await TonBlockProcessor.queryKeyBlock(
@@ -132,7 +129,7 @@ export function intToIP(int: number) {
     liteClient,
     blockProcessor,
     "EQARXqu9hEzxsSP5ZdI5n3gv5XxFJQu8uPvEt0IJOwadzfA0",
-    "4541ed7216e76f61dcf1c9d10a2b3ab033e3acea5487c6dd81ffa94821697f24"
+    "b4c796dc353687b1b571da07ef428e1d90eeac4922c8c2ee19b82a41dd66cac3"
   );
 
   const relayer = new TonToCwRelayer()

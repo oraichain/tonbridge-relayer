@@ -1,8 +1,6 @@
-import dotenv from "dotenv";
 import TonBlockProcessor from "./block-processor";
 import TonTxProcessor from "./tx-processor";
 import { setTimeout } from "timers/promises";
-dotenv.config();
 
 export default class TonToCwRelayer {
   private blockProcessor: TonBlockProcessor;

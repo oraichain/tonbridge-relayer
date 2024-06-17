@@ -34,7 +34,6 @@ export default class TonTxProcessor {
       lt: accState.lastTx.lt.toString(10),
     };
     while (true) {
-      console.log("offset: ", offset);
       const rawTxs = await this.liteClient.getAccountTransactions(
         jettonAddr,
         offset.lt,
@@ -65,6 +64,13 @@ export default class TonTxProcessor {
           hash: txs[txs.length - 1].tx.prevTransactionHash.toString(16),
           lt: txs[txs.length - 1].tx.prevTransactionLt.toString(10),
         };
+        console.log("offset: ", offset)
+        // workaround. Bug of loadTransaction that causes the prev trans hash to be incomplete
+        if (offset.hash.length === 63) {
+          offset.hash = "0" + offset.hash
+          console.log("new offset hash: ", offset.hash)
+        }
+        // console.log("txhash bigint: ", txs[txs.length - 1].tx.prevTransactionHash)
         await setTimeout(2000);
         continue;
       } else {
