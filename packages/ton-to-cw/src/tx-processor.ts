@@ -11,6 +11,7 @@ import { setTimeout } from "timers/promises";
 export default class TonTxProcessor {
   private limitPerTxQuery = 100; // limit per query
   private maxUnprocessTxs = 500; // this makes sure we dont process too many txs at once causing delays
+  private initiallatestProcessedTxHash = "";
 
   constructor(
     protected readonly validator: TonbridgeValidatorInterface,
@@ -19,7 +20,9 @@ export default class TonTxProcessor {
     protected readonly blockProcessor: TonBlockProcessor,
     protected readonly jettonBridgeAddress: string,
     protected latestProcessedTxHash: StringHex = ""
-  ) {}
+  ) {
+    this.initiallatestProcessedTxHash = latestProcessedTxHash;
+  }
 
   private async queryUnprocessedTransactions() {
     let transactions: TransactionWithBlockId[] = [];
@@ -64,11 +67,11 @@ export default class TonTxProcessor {
           hash: txs[txs.length - 1].tx.prevTransactionHash.toString(16),
           lt: txs[txs.length - 1].tx.prevTransactionLt.toString(10),
         };
-        console.log("offset: ", offset)
+        console.log("offset: ", offset);
         // workaround. Bug of loadTransaction that causes the prev trans hash to be incomplete
         if (offset.hash.length === 63) {
-          offset.hash = "0" + offset.hash
-          console.log("new offset hash: ", offset.hash)
+          offset.hash = "0" + offset.hash;
+          console.log("new offset hash: ", offset.hash);
         }
         // console.log("txhash bigint: ", txs[txs.length - 1].tx.prevTransactionHash)
         await setTimeout(2000);
@@ -87,15 +90,22 @@ export default class TonTxProcessor {
   }
 
   async processTransactions() {
-    const transactions = await this.queryUnprocessedTransactions();
-    console.log("unprocessed transactions: ", transactions.length);
-    // since we query our transactions from latest to earliest -> process the latest txs first
-    for (const tx of transactions) {
-      try {
-        await this.processTransaction(tx);
-      } catch (error) {
-        console.log("error processing transaction: ", error);
+    try {
+      const transactions = await this.queryUnprocessedTransactions();
+      console.log("unprocessed transactions: ", transactions.length);
+      // since we query our transactions from latest to earliest -> process the latest txs first
+      for (const tx of transactions) {
+        try {
+          await this.processTransaction(tx);
+        } catch (error) {
+          console.error("error processing transaction: ", error);
+        }
       }
+    } catch (error) {
+      // reset latestProcessedTxHash so we can start over to prevent missed txs in case of having errors
+      console.error("error querying unprocessed transactions: ", error);
+      this.latestProcessedTxHash = this.initiallatestProcessedTxHash;
+      return;
     }
   }
 
