@@ -4,11 +4,15 @@
         "baseUrl": ".",
         "outDir": "build",
         "declaration": true,
-        "rootDir": "src"
+        "rootDir": "src",
+        "strict": false,
+        "noFallthroughCasesInSwitch": false,
+        "noImplicitAny": false,
     },
     "include": [
         "src/**/*.ts",
-        "@types/**/*.ts"
+        "src/@types/**/*.ts",
+        "demo.ts"
     ],
     "exclude": [
         "node_modules/"
