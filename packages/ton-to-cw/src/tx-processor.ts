@@ -3,7 +3,7 @@ import {
   TonbridgeValidatorInterface,
 } from "@oraichain/tonbridge-contracts-sdk";
 import { Cell, address, loadTransaction } from "@ton/core";
-import { StringBase64, TransactionWithBlockId } from "src/@types/block";
+import { StringHex, TransactionWithBlockId } from "src/@types/block";
 import { LiteClient } from "ton-lite-client";
 import TonBlockProcessor from "./block-processor";
 import { setTimeout } from "timers/promises";
@@ -18,7 +18,7 @@ export default class TonTxProcessor {
     protected readonly liteClient: LiteClient,
     protected readonly blockProcessor: TonBlockProcessor,
     protected readonly jettonBridgeAddress: string,
-    protected latestProcessedTxHash: StringBase64 = ""
+    protected latestProcessedTxHash: StringHex = ""
   ) {}
 
   private async queryUnprocessedTransactions() {

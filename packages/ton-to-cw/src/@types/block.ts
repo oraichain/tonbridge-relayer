@@ -1,7 +1,7 @@
 import { Transaction } from "@ton/core";
 import { BlockID } from "ton-lite-client";
 
-export type StringBase64 = string;
+export type StringHex = string;
 
 export type TransactionWithBlockId = {
   tx: Transaction,
