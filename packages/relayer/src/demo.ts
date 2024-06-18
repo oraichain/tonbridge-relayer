@@ -52,7 +52,7 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
     BridgeAdapter.createFromConfig(
       {
         light_client: lightClient.address,
-        bridge_wasm_smart_contract: envConfig.BRIDGE_WASM_ADDRESS,
+        bridge_wasm_smart_contract: envConfig.WASM_BRIDGE,
         jetton_wallet_code: jettonWalletCode,
       },
       bridgeAdapterCode
@@ -131,12 +131,13 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
     wallet,
     {
       gasPrice: GasPrice.fromString("0.002orai"),
+      broadcastPollIntervalMs: 500,
     }
   );
   const bridgeWasm = new ReadWriteStateClient(
     cosmosClient,
     accounts[0].address,
-    envConfig.BRIDGE_WASM_ADDRESS
+    envConfig.WASM_BRIDGE
   );
   // Run workers
   const connection: ConnectionOptions = {
@@ -168,6 +169,7 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
     crcSrc: Src.TON.toString(),
   });
   console.log("[Demo] Transfer jetton to TON", transferJetton.transactionHash);
+
   tonWorker.on("completed", async (job) => {
     const data = job.data;
     const cellBuffer = data.data;
