@@ -14,6 +14,7 @@ export const envConfig = {
   TON_LITE_CLIENT_LIST:
     process.env.TON_LITE_CLIENT_LIST || "https://ton.org/global.config.json",
   CONNECTION_STRING: process.env.CONNECTION_STRING || "relayer.duckdb",
-  BRIDGE_WASM_ADDRESS: process.env.BRIDGE_WASM_ADDRESS || "",
-  BRIDGE_TON_ADDRESS: process.env.BRIDGE_TON_ADDRESS || "",
+  WASM_BRIDGE: process.env.WASM_BRIDGE || "",
+  TON_BRIDGE: process.env.TON_BRIDGE || "",
+  TON_LIGHT_CLIENT: process.env.TON_LIGHT_CLIENT || "",
 };

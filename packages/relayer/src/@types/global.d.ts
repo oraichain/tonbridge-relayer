@@ -1,6 +1,7 @@
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
+      NODE_ENV: string;
       REDIS_HOST: string;
       REDIS_PORT: number;
       MNEMONIC: string;
@@ -16,8 +17,9 @@ declare global {
       // DB
       CONNECTION_STRING: string;
       // CONTRACT
-      BRIDGE_WASM_ADDRESS: string;
-      BRIDGE_TON_ADDRESS: string;
+      WASM_BRIDGE: string;
+      TON_BRIDGE: string;
+      TON_LIGHT_CLIENT: string;
     }
     interface BigInt {
       toJSON(): string;
