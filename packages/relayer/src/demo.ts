@@ -6,7 +6,7 @@ import { BridgeAdapter, Src } from "./contracts/ton/BridgeAdapter";
 import { envConfig } from "./config";
 import { ConnectionOptions } from "bullmq";
 import { createCosmosWorker, createTonWorker } from "./worker";
-import { relay } from ".";
+import { relay } from "./relay";
 import { JettonMinter } from "./contracts/ton/JettonMinter";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
@@ -73,7 +73,7 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
       jettonMinterCode
     )
   );
-  await jettonMinterSrcCosmos.sendDeploy(sender, toNano("0.05"));
+  await jettonMinterSrcCosmos.sendDeploy(sender, toNano("1"));
   console.log(
     "[Demo] Deployed jettonMinterSrcCosmos at",
     jettonMinterSrcCosmos.address.toString()
@@ -88,7 +88,7 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
       jettonMinterCode
     )
   );
-  await jettonMinterSrcTon.sendDeploy(sender, toNano("0.05"));
+  await jettonMinterSrcTon.sendDeploy(sender, toNano("1"));
   console.log(
     "[Demo] Deployed jettonMinterSrcTon at",
     jettonMinterSrcTon.address.toString()
@@ -120,7 +120,7 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
 
   // SigningCosmwasmClient
   const wallet = await DirectSecp256k1HdWallet.fromMnemonic(
-    envConfig.MNEMONIC,
+    envConfig.COSMOS_MNEMONIC,
     {
       prefix: "orai",
     }
@@ -148,7 +148,8 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
     connection,
     sender,
     lightClient,
-    bridgeAdapter
+    bridgeAdapter,
+    true
   );
   const cosmosWorker = createCosmosWorker(connection, bridgeWasm);
   tonWorker.run();

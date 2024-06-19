@@ -10,18 +10,10 @@ import {
   SendMode,
 } from "@ton/core";
 
-import {
-  getAuthInfoInput,
-  getBlockSlice,
-  getMerkleProofs,
-  getTimeSlice,
-  getVersionSlice,
-  txBodyWasmToRef,
-} from "./utils";
+import { getBlockSlice, getTimeSlice, getVersionSlice } from "./utils";
 
 import { crc32 } from "@src/constants/crc32";
 import { Commit, Header, Validator } from "@cosmjs/tendermint-rpc";
-import { TxWasm } from "@src/@types/common";
 
 export type LightClientConfig = {
   height: number;
@@ -134,121 +126,6 @@ export class LightClient implements Contract {
         .storeUint(Opcodes.verify_block_hash, 32)
         .storeUint(opts?.queryID || 0, 64)
         .storeRef(data)
-        .endCell(),
-    });
-  }
-
-  async sendVerifySigs(
-    provider: ContractProvider,
-    via: Sender,
-    commit: Commit,
-    opts: SendOpts
-  ) {
-    const commitCell = getCommitCell(commit);
-    const cell = beginCell().storeRef(commitCell).endCell();
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.verify_sigs, 32)
-        .storeUint(opts?.queryID || 0, 64)
-        .storeRef(cell)
-        .endCell(),
-    });
-  }
-
-  async sendVerifyReceipt(
-    provider: ContractProvider,
-    via: Sender,
-    height: string,
-    tx: TxWasm,
-    leaves: Buffer[],
-    leafData: Buffer,
-    opts: SendOpts
-  ) {
-    const { signInfos, fee, tip } = getAuthInfoInput(tx.authInfo);
-    const authInfo = beginCell()
-      .storeRef(signInfos || beginCell().endCell())
-      .storeRef(fee)
-      .storeRef(tip)
-      .endCell();
-
-    const txBody = txBodyWasmToRef(tx.body);
-    let signatureCell: Cell | undefined;
-
-    for (let i = tx.signatures.length - 1; i >= 0; i--) {
-      const signature = tx.signatures[i];
-      const cell = beginCell()
-        .storeRef(beginCell().storeBuffer(Buffer.from(signature)).endCell())
-        .endCell();
-      if (!signatureCell) {
-        signatureCell = beginCell()
-          .storeRef(beginCell().endCell())
-          .storeRef(cell)
-          .endCell();
-      } else {
-        signatureCell = beginCell()
-          .storeRef(signatureCell)
-          .storeRef(cell)
-          .endCell();
-      }
-    }
-    const txRaw = beginCell()
-      .storeRef(authInfo)
-      .storeRef(txBody)
-      .storeRef(signatureCell || beginCell().endCell())
-      .endCell();
-
-    const { branch: proofs, positions } = getMerkleProofs(leaves, leafData);
-
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.verify_receipt, 32)
-        .storeUint(opts?.queryID || 0, 64)
-        .storeRef(
-          beginCell()
-            .storeUint(BigInt(height), 32)
-            .storeRef(txRaw)
-            .storeRef(proofs || beginCell().endCell())
-            .storeRef(positions)
-            .endCell()
-        )
-        .endCell(),
-    });
-  }
-
-  async sendVerifyUntrustedValidators(
-    provider: ContractProvider,
-    via: Sender,
-    opts?: SendOpts
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.verify_untrusted_validators, 32)
-        .storeUint(opts?.queryID || 0, 64)
-        .storeRef(beginCell().endCell())
-        .endCell(),
-    });
-  }
-
-  async sendStoreUntrustedValidators(
-    provider: ContractProvider,
-    via: Sender,
-    validators: Validator[],
-    opts?: SendOpts
-  ) {
-    const validatorCell = getValidatorsCell(validators);
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.store_untrusted_validators, 32)
-        .storeUint(opts?.queryID || 0, 64)
-        .storeRef(validatorCell!)
         .endCell(),
     });
   }

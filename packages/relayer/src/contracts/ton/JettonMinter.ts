@@ -16,12 +16,24 @@ export type JettonMinterConfig = {
   jettonWalletCode: Cell;
 };
 
+export type JettonMinterContent = {
+  type: 0 | 1;
+  uri: string;
+};
+
 export function jettonMinterConfigToCell(config: JettonMinterConfig): Cell {
   return beginCell()
     .storeCoins(0)
     .storeAddress(config.adminAddress)
     .storeRef(config.content)
     .storeRef(config.jettonWalletCode)
+    .endCell();
+}
+
+export function jettonContentToCell(content: JettonMinterContent) {
+  return beginCell()
+    .storeUint(content.type, 8)
+    .storeStringTail(content.uri) //Snake logic under the hood
     .endCell();
 }
 

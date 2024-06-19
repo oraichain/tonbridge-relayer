@@ -28,6 +28,8 @@
     "duckdb-async": "^1.0.0"
   },
   "devDependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
+    "@cosmjs/crypto": "^0.32.3",
     "@ton/sandbox": "^0.20.0",
     "tsconfig-paths": "^4.2.0"
   }

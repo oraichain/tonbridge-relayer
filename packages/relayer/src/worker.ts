@@ -1,11 +1,7 @@
 import { ConnectionOptions, Job, Worker } from "bullmq";
 import { envConfig } from "./config";
 import { beginCell, OpenedContract, Sender, toNano } from "@ton/core";
-import {
-  printTransactionFees,
-  SandboxContract,
-  SendMessageResult,
-} from "@ton/sandbox";
+import { printTransactionFees, SandboxContract } from "@ton/sandbox";
 import { LightClient } from "./contracts/ton/LightClient";
 import { BridgeAdapter } from "./contracts/ton/BridgeAdapter";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
@@ -21,6 +17,7 @@ import {
   deserializeHeader,
   deserializeValidator,
 } from "./utils";
+import { sha256 } from "@cosmjs/crypto";
 
 export type RelayCosmwasmData = {
   data: string;
@@ -49,8 +46,7 @@ export const updateBlock = async (
     deserializeCommit(lastCommit),
     { value: toNano("5") }
   );
-  console.log("[updateBlock]");
-  printTransactionFees((result as SendMessageResult).transactions);
+  return result;
 };
 
 export const getTxAndProofByHash = async (
@@ -97,7 +93,8 @@ export const createTonWorker = (
   connection: ConnectionOptions,
   sender: Sender,
   lightClient: OpenedContract<LightClient> | SandboxContract<LightClient>,
-  bridgeAdapter: OpenedContract<BridgeAdapter> | SandboxContract<BridgeAdapter>
+  bridgeAdapter: OpenedContract<BridgeAdapter> | SandboxContract<BridgeAdapter>,
+  isSandbox = false
 ) => {
   const tonWorker = new Worker(
     "ton",
@@ -112,7 +109,14 @@ export const createTonWorker = (
               "[TON-WORKER] Updating block:",
               data.clientData.header.height
             );
-            await updateBlock(lightClient, sender, data.clientData);
+            const result = await updateBlock(
+              lightClient,
+              sender,
+              data.clientData
+            );
+            if (isSandbox) {
+              printTransactionFees((result as any).transactions);
+            }
             console.log(
               "[TON-WORKER] Updating block:",
               data.clientData.header.height,
@@ -134,7 +138,7 @@ export const createTonWorker = (
           });
           const { txWasm, proofs, positions } = await getTxAndProofByHash(
             data.txHash,
-            data.clientData.txs.map((tx) => Buffer.from(tx, "hex"))
+            data.clientData.txs.map((tx) => sha256(Buffer.from(tx, "hex")))
           );
           console.log(
             "[TON-WORKER] Relaying tx:",
@@ -152,9 +156,10 @@ export const createTonWorker = (
             toNano("2")
           );
           console.log("[bridgeAdapter-sendTx]");
-          printTransactionFees((result as any).transactions);
-          // TODO: Check txResult to see if tx is relayed successfully
-          console.log("[TON-WORKER] Relaying tx:", data.txHash, "successfully");
+          if (isSandbox) {
+            printTransactionFees((result as any).transactions);
+          } else {
+          }
           break;
         }
         default:
