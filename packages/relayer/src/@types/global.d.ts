@@ -4,7 +4,8 @@ declare global {
       NODE_ENV: string;
       REDIS_HOST: string;
       REDIS_PORT: number;
-      MNEMONIC: string;
+      TON_MNEMONIC: string;
+      COSMOS_MNEMONIC: string;
       // SYNC_OPTS
       COSMOS_RPC_URL: string;
       SYNC_BLOCK_OFFSET: number;

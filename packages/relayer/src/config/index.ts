@@ -4,7 +4,8 @@ dotenv.config();
 export const envConfig = {
   REDIS_HOST: process.env.REDIS_HOST || "http://localhost",
   REDIS_PORT: Number(process.env.REDIS_PORT || 6379),
-  MNEMONIC: process.env.MNEMONIC || "",
+  TON_MNEMONIC: process.env.TON_MNEMONIC || "",
+  COSMOS_MNEMONIC: process.env.COSMOS_MNEMONIC || "",
   COSMOS_RPC_URL: process.env.COSMOS_RPC_URL || "https://rpc.orai.io/",
   SYNC_BLOCK_OFFSET: Number(process.env.SYNC_BLOCK_OFFSET || 20000000),
   SYNC_LIMIT: Number(process.env.SYNC_LIMIT || 50),
