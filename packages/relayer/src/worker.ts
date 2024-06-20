@@ -146,6 +146,7 @@ export const createTonWorker = (
             "at height:",
             updatedHeight
           );
+
           const result = await bridgeAdapter.sendTx(
             sender,
             BigInt(data.clientData.header.height),
