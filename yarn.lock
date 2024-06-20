@@ -2356,10 +2356,28 @@
     "@cosmjs/stargate" "0.29.4"
     "@cosmjs/tendermint-rpc" "^0.29.4"
 
+"@oraichain/ton-bridge-contracts@^0.10.1":
+  version "0.10.1"
+  resolved "https://registry.npmjs.org/@oraichain/ton-bridge-contracts/-/ton-bridge-contracts-0.10.1.tgz#73cc3b08f99a8421a52090109aa0442ad9df6083"
+  integrity sha512-DpxGMX4kYvHj3SAGyg2wQJEoxuSXE4lVPG3MNk7GzVwKQo0BvjEFyCTCOzyCg+XclGerbOopr4FX4lfyg1CjHg==
+  dependencies:
+    "@orbs-network/ton-access" "^2.3.3"
+    "@types/varstruct" "^6.1.3"
+    cosmjs-types "^0.9.0"
+    dotenv "^16.4.5"
+    varstruct "^6.1.3"
+
 "@oraichain/wasm-json-toolkit@^1.0.24":
   version "1.0.24"
   resolved "https://registry.yarnpkg.com/@oraichain/wasm-json-toolkit/-/wasm-json-toolkit-1.0.24.tgz#e9a431560e8e946fbb7ec257e5f13d9320ffd23a"
   integrity sha512-j+8gN3dE3rqaiEUVVblt0dfJrE6RIsSkfqF08ISxRvHkH9Pe9exIOgxpCyd2Qn3liHj27hwth6R0ELw7y3QcLg==
+
+"@orbs-network/ton-access@^2.3.3":
+  version "2.3.3"
+  resolved "https://registry.npmjs.org/@orbs-network/ton-access/-/ton-access-2.3.3.tgz#20292f83b52a75f451f185821180a7d9b829bcd3"
+  integrity sha512-b1miCPts7wBG9JKYgzXIRZQm/LMy5Uk1mNK8NzlcXHL3HRHJkkFbuYJGuj3IkWCiIicW3Ipp4sYnn3Fwo4oB0g==
+  dependencies:
+    isomorphic-fetch "^3.0.0"
 
 "@orbs-network/ton-access@orbs-network/ton-access":
   version "2.3.1"
@@ -2925,6 +2943,13 @@
   version "0.0.30"
   resolved "https://registry.yarnpkg.com/@types/strip-json-comments/-/strip-json-comments-0.0.30.tgz#9aa30c04db212a9a0649d6ae6fd50accc40748a1"
   integrity sha512-7NQmHra/JILCd1QqpSzl8+mJRc8ZHz3uDm8YV1Ks9IhK0epEiTw8aIErbvH9PI+6XbqhyIQy3462nEsn7UVzjQ==
+
+"@types/varstruct@^6.1.3":
+  version "6.1.3"
+  resolved "https://registry.npmjs.org/@types/varstruct/-/varstruct-6.1.3.tgz#dad39ad875eef0a9b9d63ae4e503cc3d5c456955"
+  integrity sha512-LgivtaEn0RHmVk+CHnIS95CtkV0xMAT6u1hPlr6qXNmYnDUU7ZhXM5fM7/byytaqXk7fNX8B/ibN1xpxe+X+hg==
+  dependencies:
+    "@types/node" "*"
 
 "@types/yargs-parser@*":
   version "21.0.3"
@@ -6082,6 +6107,11 @@ inquirer@^8.2.4:
     strip-ansi "^6.0.0"
     through "^2.3.6"
     wrap-ansi "^6.0.1"
+
+int53@^0.2.4:
+  version "0.2.4"
+  resolved "https://registry.npmjs.org/int53/-/int53-0.2.4.tgz#5ed8d7aad6c5c6567cae69aa7ffc4a109ee80f86"
+  integrity sha512-a5jlKftS7HUOhkUyYD7j2sJ/ZnvWiNlZS1ldR+g1ifQ+/UuZXIE+YTc/lK1qGj/GwAU5F8Z0e1eVq2t1J5Ob2g==
 
 internal-slot@^1.0.7:
   version "1.0.7"
@@ -10149,6 +10179,14 @@ validate-npm-package-name@^3.0.0:
   integrity sha512-M6w37eVCMMouJ9V/sdPGnC5H4uDr73/+xdq0FBLO3TFFX1+7wiUY6Es328NN+y43tmY+doUdN9g9J21vqB7iLw==
   dependencies:
     builtins "^1.0.3"
+
+varstruct@^6.1.3:
+  version "6.1.3"
+  resolved "https://registry.npmjs.org/varstruct/-/varstruct-6.1.3.tgz#45a8a073e41fb88adb10bc71158c945e20c57fbe"
+  integrity sha512-4l1Q7uxrVUBZXsMcb2cakrZL6gd4G+Ykn/m9cGnT4EY8iRBPkxOxKVDwOnL9AsIPKmREBx5BDqjfNMKKP6Zy2w==
+  dependencies:
+    int53 "^0.2.4"
+    safe-buffer "^5.1.1"
 
 vscode-oniguruma@^1.7.0:
   version "1.7.0"
