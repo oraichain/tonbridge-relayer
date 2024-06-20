@@ -1,16 +1,18 @@
 import { envConfig } from "./config";
 import { Address, beginCell } from "@ton/core";
-import { LightClient } from "./contracts/ton/LightClient";
-import { BridgeAdapter, Src } from "./contracts/ton/BridgeAdapter";
+import {
+  LightClient,
+  BridgeAdapter,
+  Src,
+  JettonMinter,
+  JettonWallet,
+} from "@oraichain/ton-bridge-contracts";
 import { ConnectionOptions } from "bullmq";
 import { createCosmosWorker, createTonWorker } from "./worker";
-import { JettonMinter } from "./contracts/ton/JettonMinter";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { ReadWriteStateClient } from "./contracts/cosmwasm/mock";
 import { GasPrice } from "@cosmjs/stargate";
-import { JettonWallet } from "./contracts/ton/JettonWallet";
-
 import { createTonWallet } from "./utils";
 import { Network } from "@orbs-network/ton-access";
 import { relay } from "./relay";
@@ -18,16 +20,16 @@ import { relay } from "./relay";
 (async () => {
   // Setup All Client
   // Cosmwasm
-  const wallet = await DirectSecp256k1HdWallet.fromMnemonic(
+  const cosmosWallet = await DirectSecp256k1HdWallet.fromMnemonic(
     envConfig.TON_MNEMONIC,
     {
       prefix: "orai",
     }
   );
-  const accounts = await wallet.getAccounts();
+  const accounts = await cosmosWallet.getAccounts();
   const cosmosClient = await SigningCosmWasmClient.connectWithSigner(
     envConfig.COSMOS_RPC_URL,
-    wallet,
+    cosmosWallet,
     {
       gasPrice: GasPrice.fromString("0.002orai"),
       broadcastPollIntervalMs: 500,
@@ -49,7 +51,7 @@ import { relay } from "./relay";
     envConfig.TON_CENTER
   );
   const lightClient = LightClient.createFromAddress(
-    Address.parse(envConfig.TON_LIGHT_CLIENT)
+    Address.parse(envConfig.COSMOS_LIGHT_CLIENT)
   );
   const bridgeAdapter = BridgeAdapter.createFromAddress(
     Address.parse(envConfig.TON_BRIDGE)
