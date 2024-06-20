@@ -2,21 +2,20 @@ import { ConnectionOptions, Job, Worker } from "bullmq";
 import { envConfig } from "./config";
 import { beginCell, OpenedContract, Sender, toNano } from "@ton/core";
 import { printTransactionFees, SandboxContract } from "@ton/sandbox";
-import { LightClient } from "./contracts/ton/LightClient";
-import { BridgeAdapter } from "./contracts/ton/BridgeAdapter";
+import { LightClient, BridgeAdapter } from "@oraichain/ton-bridge-contracts";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 import { decodeTxRaw, Registry } from "@cosmjs/proto-signing";
 import { defaultRegistryTypes } from "@cosmjs/stargate";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
-import { TxWasm } from "./@types/common";
-import { getMerkleProofs } from "./contracts/ton/utils";
+import { TxWasm } from "@oraichain/ton-bridge-contracts/wrappers/@types";
+import { getMerkleProofs } from "@oraichain/ton-bridge-contracts/wrappers/utils";
 import { BridgeData, LightClientData } from "./@types/interfaces/cosmwasm";
 import { ReadWriteStateInterface } from "./contracts/cosmwasm/mock";
 import {
   deserializeCommit,
   deserializeHeader,
   deserializeValidator,
-} from "./utils";
+} from "@oraichain/ton-bridge-contracts/wrappers/utils";
 import { sha256 } from "@cosmjs/crypto";
 
 export type RelayCosmwasmData = {
@@ -33,7 +32,7 @@ export enum CosmosWorkerJob {
   SubmitData = "SubmitData",
 }
 
-export const updateBlock = async (
+export const updateCosmosLightClient = async (
   lightClient: SandboxContract<LightClient> | OpenedContract<LightClient>,
   sender: Sender,
   clientData: LightClientData
@@ -41,15 +40,17 @@ export const updateBlock = async (
   const { header, lastCommit, validators } = clientData;
   const result = await lightClient.sendVerifyBlockHash(
     sender,
-    deserializeHeader(header),
-    validators.map(deserializeValidator),
-    deserializeCommit(lastCommit),
-    { value: toNano("5") }
+    {
+      header: deserializeHeader(header),
+      validators: validators.map(deserializeValidator),
+      commit: deserializeCommit(lastCommit),
+    },
+    { value: toNano("3") }
   );
   return result;
 };
 
-export const getTxAndProofByHash = async (
+export const getCosmosTxAndProofByHash = async (
   txHash: string,
   txs: Uint8Array[]
 ) => {
@@ -109,7 +110,7 @@ export const createTonWorker = (
               "[TON-WORKER] Updating block:",
               data.clientData.header.height
             );
-            const result = await updateBlock(
+            const result = await updateCosmosLightClient(
               lightClient,
               sender,
               data.clientData
@@ -136,7 +137,7 @@ export const createTonWorker = (
             dataHash: dataHash.toString("hex"),
             validatorHash: validatorHash.toString("hex"),
           });
-          const { txWasm, proofs, positions } = await getTxAndProofByHash(
+          const { txWasm, proofs, positions } = await getCosmosTxAndProofByHash(
             data.txHash,
             data.clientData.txs.map((tx) => sha256(Buffer.from(tx, "hex")))
           );
@@ -149,12 +150,16 @@ export const createTonWorker = (
 
           const result = await bridgeAdapter.sendTx(
             sender,
-            BigInt(data.clientData.header.height),
-            txWasm,
-            proofs,
-            positions,
-            beginCell().storeBuffer(Buffer.from(data.data, "hex")).endCell(),
-            toNano("2")
+            {
+              height: BigInt(data.clientData.header.height),
+              tx: txWasm,
+              proofs: proofs,
+              positions: positions,
+              data: beginCell()
+                .storeBuffer(Buffer.from(data.data, "hex"))
+                .endCell(),
+            },
+            { value: toNano("2") }
           );
           console.log("[bridgeAdapter-sendTx]");
           if (isSandbox) {

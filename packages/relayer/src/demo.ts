@@ -1,33 +1,44 @@
 import { beginCell, Cell, toNano } from "@ton/core";
 import { Blockchain } from "@ton/sandbox";
-import { MOCK_BOC } from "./contracts/ton/boc/mock";
-import { LightClient } from "./contracts/ton/LightClient";
-import { BridgeAdapter, Src } from "./contracts/ton/BridgeAdapter";
+import {
+  BridgeAdapter,
+  Src,
+  LightClient,
+  JettonMinter,
+  JettonWallet,
+  WhitelistDenom,
+} from "@oraichain/ton-bridge-contracts";
 import { envConfig } from "./config";
 import { ConnectionOptions } from "bullmq";
 import { createCosmosWorker, createTonWorker } from "./worker";
 import { relay } from "./relay";
-import { JettonMinter } from "./contracts/ton/JettonMinter";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { ReadWriteStateClient } from "./contracts/cosmwasm/mock";
 import { GasPrice } from "@cosmjs/stargate";
-import { JettonWallet } from "./contracts/ton/JettonWallet";
+import * as lightClientBuild from "@oraichain/ton-bridge-contracts/build/LightClient.compiled.json";
+import * as bridgeAdapterBuild from "@oraichain/ton-bridge-contracts/build/BridgeAdapter.compiled.json";
+import * as jettonWalletBuild from "@oraichain/ton-bridge-contracts/build/JettonWallet.compiled.json";
+import * as jettonMinterBuild from "@oraichain/ton-bridge-contracts/build/JettonMinter.compiled.json";
+import * as whiteListDenomBuild from "@oraichain/ton-bridge-contracts/build/WhitelistDenom.compiled.json";
 
 (async () => {
   // Setup
   const blockchain = await Blockchain.create();
   const lightClientCode = Cell.fromBoc(
-    Buffer.from(MOCK_BOC.LIGHT_CLIENT, "hex")
+    Buffer.from(lightClientBuild.hex, "hex")
   )[0];
   const bridgeAdapterCode = Cell.fromBoc(
-    Buffer.from(MOCK_BOC.BRIDGE_ADAPTER, "hex")
+    Buffer.from(bridgeAdapterBuild.hex, "hex")
   )[0];
   const jettonWalletCode = Cell.fromBoc(
-    Buffer.from(MOCK_BOC.JETTON_WALLET, "hex")
+    Buffer.from(jettonWalletBuild.hex, "hex")
   )[0];
   const jettonMinterCode = Cell.fromBoc(
-    Buffer.from(MOCK_BOC.JETTON_MINTER, "hex")
+    Buffer.from(jettonMinterBuild.hex, "hex")
+  )[0];
+  const whitelistDenomCode = Cell.fromBoc(
+    Buffer.from(whiteListDenomBuild.hex, "hex")
   )[0];
   // Deploying to TON sandbox blockchain
   const deployer = await blockchain.treasury("deployer");
@@ -48,17 +59,28 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
   );
   await lightClient.sendDeploy(sender, toNano("0.5"));
   console.log("[Demo] Deployed LightClient at", lightClient.address.toString());
+  // SET UP WHITELIST DENOM CONTRACT
+  const whitelistDenom = blockchain.openContract(
+    WhitelistDenom.createFromConfig(
+      {
+        admin: deployer.address,
+      },
+      whitelistDenomCode
+    )
+  );
+  await whitelistDenom.sendDeploy(deployer.getSender(), toNano("0.05"));
   const bridgeAdapter = blockchain.openContract(
     BridgeAdapter.createFromConfig(
       {
         light_client: lightClient.address,
         bridge_wasm_smart_contract: envConfig.WASM_BRIDGE,
         jetton_wallet_code: jettonWalletCode,
+        whitelist_denom: whitelistDenom.address,
       },
       bridgeAdapterCode
     )
   );
-  await bridgeAdapter.sendDeploy(sender, toNano("0.05"));
+  await bridgeAdapter.sendDeploy(sender, { value: toNano("0.05") });
   console.log(
     "[Demo] Deployed bridgeAdapter at",
     bridgeAdapter.address.toString()
@@ -73,7 +95,7 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
       jettonMinterCode
     )
   );
-  await jettonMinterSrcCosmos.sendDeploy(sender, toNano("1"));
+  await jettonMinterSrcCosmos.sendDeploy(sender, { value: toNano("1") });
   console.log(
     "[Demo] Deployed jettonMinterSrcCosmos at",
     jettonMinterSrcCosmos.address.toString()
@@ -88,7 +110,7 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
       jettonMinterCode
     )
   );
-  await jettonMinterSrcTon.sendDeploy(sender, toNano("1"));
+  await jettonMinterSrcTon.sendDeploy(sender, { value: toNano("1") });
   console.log(
     "[Demo] Deployed jettonMinterSrcTon at",
     jettonMinterSrcTon.address.toString()
@@ -110,13 +132,15 @@ import { JettonWallet } from "./contracts/ton/JettonWallet";
     value: toNano("1000"),
   });
 
-  await jettonMinterSrcTon.sendMint(deployer.getSender(), {
-    toAddress: bridgeAdapter.address,
-    jettonAmount: toNano(1000000000),
-    amount: toNano(0.5), // deploy fee
-    queryId: 0,
-    value: toNano(1),
-  });
+  await jettonMinterSrcTon.sendMint(
+    deployer.getSender(),
+    {
+      toAddress: bridgeAdapter.address,
+      jettonAmount: toNano(1000000000),
+      amount: toNano(0.5), // deploy fee
+    },
+    { value: toNano(1), queryId: 0 }
+  );
 
   // SigningCosmwasmClient
   const wallet = await DirectSecp256k1HdWallet.fromMnemonic(
