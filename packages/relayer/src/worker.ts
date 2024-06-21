@@ -1,6 +1,13 @@
 import { ConnectionOptions, Job, Worker } from "bullmq";
 import { envConfig } from "./config";
-import { beginCell, OpenedContract, Sender, toNano } from "@ton/core";
+import {
+  Address,
+  beginCell,
+  Cell,
+  OpenedContract,
+  Sender,
+  toNano,
+} from "@ton/core";
 import { printTransactionFees, SandboxContract } from "@ton/sandbox";
 import { LightClient, BridgeAdapter } from "@oraichain/ton-bridge-contracts";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
@@ -90,12 +97,11 @@ export const getCosmosTxAndProofByHash = async (
   return { txWasm: decodedTxWithRawMsg, proofs, positions };
 };
 
-export const createTonWorker = (
+export const createSandBoxTonWorker = (
   connection: ConnectionOptions,
   sender: Sender,
-  lightClient: OpenedContract<LightClient> | SandboxContract<LightClient>,
-  bridgeAdapter: OpenedContract<BridgeAdapter> | SandboxContract<BridgeAdapter>,
-  isSandbox = false
+  lightClient: SandboxContract<LightClient>,
+  bridgeAdapter: SandboxContract<BridgeAdapter>
 ) => {
   const tonWorker = new Worker(
     "ton",
@@ -115,28 +121,13 @@ export const createTonWorker = (
               sender,
               data.clientData
             );
-            if (isSandbox) {
-              printTransactionFees((result as any).transactions);
-            }
+            printTransactionFees((result as any).transactions);
             console.log(
               "[TON-WORKER] Updating block:",
               data.clientData.header.height,
               "successfully"
             );
           }
-          const [updatedHeight, chainId, dataHash, validatorHash] =
-            await Promise.all([
-              lightClient.getHeight(),
-              lightClient.getChainId(),
-              lightClient.getDataHash(),
-              lightClient.getValidatorHash(),
-            ]);
-          console.log("[TON-WORKER] Finished update block ", {
-            updatedHeight,
-            chainId,
-            dataHash: dataHash.toString("hex"),
-            validatorHash: validatorHash.toString("hex"),
-          });
           const { txWasm, proofs, positions } = await getCosmosTxAndProofByHash(
             data.txHash,
             data.clientData.txs.map((tx) => sha256(Buffer.from(tx, "hex")))
@@ -145,9 +136,8 @@ export const createTonWorker = (
             "[TON-WORKER] Relaying tx:",
             data.txHash,
             "at height:",
-            updatedHeight
+            data.clientData.header.height
           );
-
           const result = await bridgeAdapter.sendTx(
             sender,
             {
@@ -162,10 +152,71 @@ export const createTonWorker = (
             { value: toNano("2") }
           );
           console.log("[bridgeAdapter-sendTx]");
-          if (isSandbox) {
-            printTransactionFees((result as any).transactions);
-          } else {
+          printTransactionFees((result as any).transactions);
+          break;
+        }
+        default:
+          throw new Error(`Unknown job name: ${job.name}`);
+      }
+    },
+    {
+      connection,
+      autorun: false,
+    }
+  );
+  return tonWorker;
+};
+
+export const createTonWorker = (
+  connection: ConnectionOptions,
+  sender: Sender,
+  lightClient: OpenedContract<LightClient>,
+  bridgeAdapter: OpenedContract<BridgeAdapter>
+) => {
+  const tonWorker = new Worker(
+    "ton",
+    async (job: Job<RelayCosmwasmData>) => {
+      const data = job.data;
+      switch (job.name) {
+        case TonWorkerJob.RelayCosmWasmData: {
+          const height = await lightClient.getHeight();
+          console.log("[TON-WORKER] LightClient current height", height);
+          if (height < data.clientData.header.height) {
+            console.log(
+              "[TON-WORKER] Updating block:",
+              data.clientData.header.height
+            );
+            await updateCosmosLightClient(lightClient, sender, data.clientData);
+            console.log(
+              "[TON-WORKER] Updating block:",
+              data.clientData.header.height,
+              "successfully"
+            );
           }
+          const { txWasm, proofs, positions } = await getCosmosTxAndProofByHash(
+            data.txHash,
+            data.clientData.txs.map((tx) => sha256(Buffer.from(tx, "hex")))
+          );
+          console.log(
+            "[TON-WORKER] Relaying tx:",
+            data.txHash,
+            "at height:",
+            data.clientData.header.height
+          );
+          await bridgeAdapter.sendTx(
+            sender,
+            {
+              height: BigInt(data.clientData.header.height),
+              tx: txWasm,
+              proofs: proofs,
+              positions: positions,
+              data: beginCell()
+                .storeBuffer(Buffer.from(data.data, "hex"))
+                .endCell(),
+            },
+            { value: toNano("2") }
+          );
+          console.log("[bridgeAdapter-sendTx]");
           break;
         }
         default:

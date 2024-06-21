@@ -9,13 +9,17 @@ import { Event } from "@cosmjs/stargate";
 import { parseWasmEvents } from "@oraichain/oraidex-common";
 import { Log } from "@cosmjs/stargate/build/logs";
 import { EventEmitter } from "stream";
-import { BasicTxInfo } from "./@types/common";
+import { BasicTxInfo } from "@src/@types/common";
 import {
   BridgeParsedData,
   ICosmwasmParser,
-} from "./@types/interfaces/cosmwasm";
+} from "@src/@types/interfaces/cosmwasm";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
-import { serializeCommit, serializeHeader, serializeValidator } from "./utils";
+import {
+  serializeCommit,
+  serializeHeader,
+  serializeValidator,
+} from "@src/utils";
 import {
   LightClientData,
   SerializedTx,

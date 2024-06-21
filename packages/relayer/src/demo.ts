@@ -10,7 +10,7 @@ import {
 } from "@oraichain/ton-bridge-contracts";
 import { envConfig } from "./config";
 import { ConnectionOptions } from "bullmq";
-import { createCosmosWorker, createTonWorker } from "./worker";
+import { createCosmosWorker, createSandBoxTonWorker } from "./worker";
 import { relay } from "./relay";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
@@ -168,12 +168,11 @@ import * as whiteListDenomBuild from "@oraichain/ton-bridge-contracts/build/Whit
     host: envConfig.REDIS_HOST,
     port: envConfig.REDIS_PORT,
   };
-  const tonWorker = createTonWorker(
+  const tonWorker = createSandBoxTonWorker(
     connection,
     sender,
     lightClient,
-    bridgeAdapter,
-    true
+    bridgeAdapter
   );
   const cosmosWorker = createCosmosWorker(connection, bridgeWasm);
   tonWorker.run();
@@ -194,7 +193,6 @@ import * as whiteListDenomBuild from "@oraichain/ton-bridge-contracts/build/Whit
     crcSrc: Src.TON.toString(),
   });
   console.log("[Demo] Transfer jetton to TON", transferJetton.transactionHash);
-
   tonWorker.on("completed", async (job) => {
     const data = job.data;
     const cellBuffer = data.data;

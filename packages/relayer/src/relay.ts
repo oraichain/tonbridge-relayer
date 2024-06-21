@@ -5,19 +5,22 @@ import {
   createCosmosBridgeWatcher,
   CosmwasmWatcherEvent,
   createUpdateClientData,
-} from "./cosmos.service";
-import { DuckDb } from "./duckdb.service";
+} from "@src/services/cosmos.service";
+import { DuckDb } from "./services/duckdb.service";
 import { CosmosBlockOffset } from "./models/cosmwasm/block-offset";
 import { CosmosWorkerJob, TonWorkerJob } from "./worker";
-import { Queue } from "bullmq";
+import { ConnectionOptions, Queue } from "bullmq";
 
 //@ts-ignore
 BigInt.prototype.toJSON = function () {
   return this.toString();
 };
-const connection = {
+const connection: ConnectionOptions = {
   host: envConfig.REDIS_HOST,
   port: envConfig.REDIS_PORT,
+  retryStrategy: function (times: number) {
+    return Math.max(Math.min(Math.exp(times), 20000), 1000);
+  },
 };
 const tonQueue = new Queue("ton", {
   connection,
