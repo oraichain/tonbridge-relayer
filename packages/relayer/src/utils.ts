@@ -19,6 +19,7 @@ import {
   TonClient,
   internal,
   OpenedContract,
+  Transaction,
 } from "@ton/ton";
 import { mnemonicToWalletKey } from "@ton/crypto";
 
@@ -179,23 +180,23 @@ export async function createTonWallet(
   network: Network,
   endpoint?: string
 ) {
-  const finalEndpoint =
-    endpoint || (await getHttpEndpoint({ network: network }));
+  const finalEndpoint = await getHttpEndpoint({ network });
   const client = new TonClient({ endpoint: finalEndpoint });
+  if (!mnemonic) {
+    throw new Error("Mnemonic is not set");
+  }
   const key = await mnemonicToWalletKey(mnemonic.split(" "));
   // NOTE: Testnet using WalletContractV3R2 and Mainnet using WalletContractV4
   let wallet = WalletContractV4.create({
     publicKey: key.publicKey,
     workchain: 0,
   });
-
   if (network === "testnet") {
     wallet = WalletContractV3R2.create({
       publicKey: key.publicKey,
       workchain: 0,
     });
   }
-
   const walletContract = client.open(wallet);
   // Deployed by sending a simple transaction to another subwallet. Since the subwallet have not been deployed,
   // the fund will return.
@@ -220,4 +221,35 @@ export async function createTonWallet(
     await waitSeqno(walletContract, seqno);
   }
   return { client, walletContract, key };
+}
+
+export async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function isSuccessVmTx(tx: Transaction) {
+  return (
+    tx.description.type === "generic" &&
+    tx.description.actionPhase.success &&
+    tx.description.computePhase.type === "vm" &&
+    tx.description.computePhase.success
+  );
+}
+
+export async function retry<T>(
+  fn: (...params: any[]) => Promise<T>,
+  retries: number,
+  delay: number,
+  ...params: any[]
+): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn(...params);
+    } catch (e) {
+      if (i === retries - 1) {
+        throw e;
+      }
+      await sleep(delay);
+    }
+  }
 }

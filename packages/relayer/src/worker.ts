@@ -1,13 +1,6 @@
 import { ConnectionOptions, Job, Worker } from "bullmq";
 import { envConfig } from "./config";
-import {
-  Address,
-  beginCell,
-  Cell,
-  OpenedContract,
-  Sender,
-  toNano,
-} from "@ton/core";
+import { beginCell, OpenedContract, Sender, toNano } from "@ton/core";
 import { printTransactionFees, SandboxContract } from "@ton/sandbox";
 import { LightClient, BridgeAdapter } from "@oraichain/ton-bridge-contracts";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
