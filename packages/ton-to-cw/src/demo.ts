@@ -1,5 +1,5 @@
 import { SimulateCosmWasmClient } from "@oraichain/cw-simulate";
-import { toAmount } from "@oraichain/oraidex-common";
+import { ORAI, toAmount } from "@oraichain/oraidex-common";
 import { OraiswapTokenClient } from "@oraichain/oraidex-contracts-sdk";
 import {
   InstantiateMsg as Cw20InstantiateMsg,
@@ -21,6 +21,7 @@ import TonBlockProcessor from "./block-processor";
 import TonTxProcessor from "./tx-processor";
 import TonToCwRelayer from "./index";
 import dotenv from "dotenv";
+import { InstantiateMsg } from "@oraichain/tonbridge-contracts-sdk/build/TonbridgeBridge.types";
 dotenv.config();
 
 export function intToIP(int: number) {
@@ -80,7 +81,12 @@ export function intToIP(int: number) {
   const bridgeDeployResult = await deployContract(
     client,
     sender,
-    {},
+    {
+      relayer_fee_token: { native_token: { denom: ORAI } },
+      relayer_fee_receiver: sender,
+      swap_router_contract: sender,
+      token_fee_receiver: sender,
+    } as InstantiateMsg,
     "bridge-bridge",
     "cw-tonbridge-bridge"
   );
@@ -120,11 +126,12 @@ export function intToIP(int: number) {
 
   // FIXME: change denom & channel id to correct denom and channel id
   await bridge.updateMappingPair({
-    denom: "",
+    denom: ORAI,
     localAssetInfo: { token: { contract_addr: dummyToken.contractAddress } },
-    localChannelId: "",
+    localChannelId: "channel-0",
     localAssetInfoDecimals: 6,
-    remoteDecimals: 6,
+    remoteDecimals: 9, // standard of TEPS: https://github.com/ton-blockchain/TEPs/blob/master/text/0064-token-data-standard.md
+    opcode: "0000000000000000000000000000000000000000000000000000000000000002",
   });
 
   const blockProcessor = new TonBlockProcessor(validator, liteClient, tonWeb);
@@ -133,8 +140,8 @@ export function intToIP(int: number) {
     bridge,
     liteClient,
     blockProcessor,
-    "EQARXqu9hEzxsSP5ZdI5n3gv5XxFJQu8uPvEt0IJOwadzfA0",
-    "b4c796dc353687b1b571da07ef428e1d90eeac4922c8c2ee19b82a41dd66cac3"
+    "EQARXqu9hEzxsSP5ZdI5n3gv5XxFJQu8uPvEt0IJOwadzfA0"
+    // "b4c796dc353687b1b571da07ef428e1d90eeac4922c8c2ee19b82a41dd66cac3"
   );
 
   const relayer = new TonToCwRelayer()

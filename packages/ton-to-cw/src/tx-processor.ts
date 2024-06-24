@@ -129,13 +129,11 @@ export default class TonTxProcessor {
       tx.tx.lt.toString(10),
       tx.blockId
     );
-    // FIXME: fix the opcode
+
     await this.bridge.readTransaction({
       txBoc: txWithProof.transaction.toString("hex"),
       txProof: txWithProof.proof.toString("hex"),
       validatorContractAddr: this.validator.contractAddress,
-      opcode:
-        "0000000000000000000000000000000000000000000000000000000000000001",
     });
 
     console.log(
