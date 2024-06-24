@@ -131,3 +131,7 @@ dist
 
 .nx
 **/packages/*/build/
+
+# data
+*.duckdb
+*.duckdb.*
