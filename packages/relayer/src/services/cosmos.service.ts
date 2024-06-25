@@ -27,7 +27,7 @@ import {
 
 export const enum BRIDGE_ACTION {
   TRANSFER_TO_TON = "transfer_to_ton",
-  RELAYER_SUBMIT = "submit",
+  RELAYER_SUBMIT = "submit_bridge_to_ton_info",
 }
 
 export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
@@ -100,9 +100,10 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
     const submitData = transferToTon.map((attr) => {
       return {
         data: this.transformToSubmitActionCell(
-          attr["to"],
-          attr["denom"],
-          BigInt(attr["amount"]),
+          Number(attr["seq"]),
+          attr["dest_receiver"],
+          attr["dest_denom"],
+          BigInt(attr["remote_amount"]),
           BigInt(attr["crc_src"])
         ),
         ...basicInfo,
@@ -115,6 +116,7 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
   }
 
   transformToSubmitActionCell(
+    seq: number,
     to: string,
     denom: string,
     amount: bigint,
@@ -122,6 +124,7 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
   ) {
     return Buffer.from(
       beginCell()
+        .storeUint(seq, 64)
         .storeAddress(Address.parse(to))
         .storeAddress(Address.parse(denom))
         .storeUint(amount, 128)

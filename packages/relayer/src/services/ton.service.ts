@@ -3,6 +3,7 @@ import {
   Cell,
   CommonMessageInfoInternal,
   TonClient,
+  TonClient4,
   Transaction,
 } from "@ton/ton";
 import { LightClientOpcodes } from "@oraichain/ton-bridge-contracts/wrappers/LightClient";
@@ -70,16 +71,21 @@ export abstract class Tracer {
     if (this.isTimeout) {
       throw new Error("Timeout");
     }
-    const outTxs = await retry(
-      () => this.findOutgoingTransactions(transaction),
-      5,
-      5000
+    const outTxs = await this.findOutgoingTransactions(transaction).catch(
+      console.error
     );
+    // const outTxs = await retry(
+    //   () => this.findOutgoingTransactions(transaction),
+    //   5,
+    //   5000
+    // );
     // do smth with out txs
-    for (const out of outTxs) {
-      const isContinue = this.handleOutTx(out);
-      if (isContinue) {
-        await this.traverseOutgoingTransactions(out);
+    if (outTxs) {
+      for (const out of outTxs) {
+        const isContinue = this.handleOutTx(out);
+        if (isContinue) {
+          await this.traverseOutgoingTransactions(out);
+        }
       }
     }
   }
@@ -109,8 +115,7 @@ export class BridgeAdapterTracer extends Tracer {
                 inMsg?.body.hash().toString("hex") &&
               isTxSuccess
             ) {
-              await this.traverseOutgoingTransactions(tx);
-              return;
+              return await this.traverseOutgoingTransactions(tx);
             }
           }
         }
@@ -127,12 +132,12 @@ export class BridgeAdapterTracer extends Tracer {
     const src = outTx.inMessage.info.src;
     const amount = (outTx.inMessage.info as CommonMessageInfoInternal).value
       .coins;
-
     if (
       outTx.inMessage.body.beginParse().remainingBits > 32 &&
       isSuccessVmTx(outTx)
     ) {
       const op = outTx.inMessage.body.beginParse().loadUint(32);
+      console.log(op.toString(16));
       return this.handleSendTxOps(op, outTx);
     } else if (
       src.toString() === this.contract.toString() &&

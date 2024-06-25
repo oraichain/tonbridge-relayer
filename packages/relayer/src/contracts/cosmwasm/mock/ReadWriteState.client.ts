@@ -51,14 +51,16 @@ export interface ReadWriteStateInterface extends ReadWriteStateReadOnlyInterface
     amount,
     crcSrc,
     denom,
+    seq,
     to
   }: {
     amount: Uint128;
     crcSrc: string;
     denom: string;
+    seq: number;
     to: string;
   }, _fee?: number | StdFee | "auto", _memo?: string, _funds?: Coin[]) => Promise<ExecuteResult>;
-  submit: ({
+  submitBridgeToTonInfo: ({
     data
   }: {
     data: string;
@@ -75,18 +77,20 @@ export class ReadWriteStateClient extends ReadWriteStateQueryClient implements R
     this.sender = sender;
     this.contractAddress = contractAddress;
     this.transferToTon = this.transferToTon.bind(this);
-    this.submit = this.submit.bind(this);
+    this.submitBridgeToTonInfo = this.submitBridgeToTonInfo.bind(this);
   }
 
   transferToTon = async ({
     amount,
     crcSrc,
     denom,
+    seq,
     to
   }: {
     amount: Uint128;
     crcSrc: string;
     denom: string;
+    seq: number;
     to: string;
   }, _fee: number | StdFee | "auto" = "auto", _memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
@@ -94,17 +98,18 @@ export class ReadWriteStateClient extends ReadWriteStateQueryClient implements R
         amount,
         crc_src: crcSrc,
         denom,
+        seq,
         to
       }
     }, _fee, _memo, _funds);
   };
-  submit = async ({
+  submitBridgeToTonInfo = async ({
     data
   }: {
     data: string;
   }, _fee: number | StdFee | "auto" = "auto", _memo?: string, _funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      submit: {
+      submit_bridge_to_ton_info: {
         data
       }
     }, _fee, _memo, _funds);

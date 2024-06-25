@@ -235,7 +235,7 @@ export const createCosmosWorker = (
       switch (job.name) {
         case CosmosWorkerJob.SubmitData: {
           console.log("[COSMOS-WORKER] Submitting data to cosmos bridge");
-          const result = await bridgeWasm.submit(data);
+          const result = await bridgeWasm.submitBridgeToTonInfo(data);
           console.log(
             "[COSMOS-WORKER] Submit successfully at",
             result.transactionHash

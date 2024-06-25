@@ -6,10 +6,11 @@ export type ExecuteMsg = {
     amount: Uint128;
     crc_src: string;
     denom: string;
+    seq: number;
     to: string;
   };
 } | {
-  submit: {
+  submit_bridge_to_ton_info: {
     data: string;
   };
 };

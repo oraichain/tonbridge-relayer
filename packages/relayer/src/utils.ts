@@ -180,7 +180,7 @@ export async function createTonWallet(
   network: Network,
   endpoint?: string
 ) {
-  const finalEndpoint = await getHttpEndpoint({ network });
+  const finalEndpoint = endpoint || (await getHttpEndpoint({ network }));
   const client = new TonClient({ endpoint: finalEndpoint });
   if (!mnemonic) {
     throw new Error("Mnemonic is not set");
@@ -230,9 +230,9 @@ export async function sleep(ms: number) {
 export async function isSuccessVmTx(tx: Transaction) {
   return (
     tx.description.type === "generic" &&
-    tx.description.actionPhase.success &&
-    tx.description.computePhase.type === "vm" &&
-    tx.description.computePhase.success
+    tx.description?.actionPhase?.success &&
+    tx.description?.computePhase?.type === "vm" &&
+    tx.description?.computePhase?.success
   );
 }
 
