@@ -14,13 +14,12 @@ import TonTxProcessor from "./tx-processor";
 import TonToCwRelayer from "./index";
 import dotenv from "dotenv";
 import { initSignClient } from "./client";
+import { Err } from "@oraichain/cw-simulate";
 dotenv.config();
 
-const CW_TON_BRIDGE =
-  "orai1y4kj224wmzmrna4kz9nk3n00zxdst5nra0z0u0nry5k6seqdw5psu4t9fn";
-const CW_TON_VALDATOR =
-  "orai1la4m7n7ag44d9jtamwktlmvnasps0vcsfemktpte4wdnzrc89fgsrg5wx0";
-const JETTON_BRIDGE = "EQAOW4VHbuvMqUNGmv7oJQzsB7aPKLEtq3OHK_hnHRS5OO5l";
+const CW_TON_BRIDGE = process.env.CW_TON_BRIDGE;
+const CW_TON_VALDATOR = process.env.CW_TON_VALDATOR;
+const JETTON_BRIDGE = process.env.JETTON_BRIDGE;
 
 export function intToIP(int: number) {
   var part1 = int & 255;
@@ -31,7 +30,14 @@ export function intToIP(int: number) {
   return part4 + "." + part3 + "." + part2 + "." + part1;
 }
 
+function validate() {
+  if (!CW_TON_BRIDGE || !CW_TON_VALDATOR || !JETTON_BRIDGE) {
+    throw new Error("Missing parameters");
+  }
+}
+
 (async () => {
+  validate();
   const client = await initSignClient();
   // setup lite engine server
   const { liteservers } = await fetch(
