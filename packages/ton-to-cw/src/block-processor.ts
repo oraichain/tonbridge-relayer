@@ -246,7 +246,6 @@ export default class TonBlockProcessor {
   }
 
   async verifyShardBlocks(shardId: BlockID) {
-
     const isBlockVerified = await this.validator.isVerifiedBlock({
       rootHash: shardId.rootHash.toString("hex"),
     });
