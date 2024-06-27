@@ -10,6 +10,9 @@ yarn patch-package
 
 ```bash
 
+# normal
+yarn deploy
+
 # minor change
 yarn deploy minor
 
