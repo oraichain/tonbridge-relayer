@@ -5,3 +5,14 @@
 ```bash
 yarn patch-package
 ```
+
+# publish packages
+
+```bash
+
+# minor change
+yarn deploy minor
+
+# patch
+yarn deploy patch
+```
