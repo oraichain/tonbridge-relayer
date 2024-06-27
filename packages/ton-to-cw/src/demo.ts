@@ -19,7 +19,7 @@ import {
 import TonWeb from "tonweb";
 import TonBlockProcessor from "./block-processor";
 import TonTxProcessor from "./tx-processor";
-import TonToCwRelayer from "./index";
+import TonToCwRelayer from ".";
 import dotenv from "dotenv";
 import { InstantiateMsg } from "@oraichain/tonbridge-contracts-sdk/build/TonbridgeBridge.types";
 dotenv.config();

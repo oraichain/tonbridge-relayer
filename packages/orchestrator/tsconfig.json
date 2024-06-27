@@ -7,8 +7,9 @@
         "rootDir": "src"
     },
     "include": [
-        "src/**/*.ts"
-, "src/types/Block.ts"    ],
+        "src/**/*.ts",
+        "@types/**/*.ts"
+    ],
     "exclude": [
         "node_modules/"
     ]
