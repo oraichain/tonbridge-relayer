@@ -82,10 +82,12 @@ export function intToIP(int: number) {
     client,
     sender,
     {
+      bridge_adapter: "EQAE8anZidQFTKcsKS_98iDEXFkvuoa1YmVPxQC279zAoV7R",
       relayer_fee_token: { native_token: { denom: ORAI } },
       relayer_fee_receiver: sender,
       swap_router_contract: sender,
       token_fee_receiver: sender,
+      validator_contract_addr: validatorDeployResult.contractAddress,
     } as InstantiateMsg,
     "bridge-bridge",
     "cw-tonbridge-bridge"

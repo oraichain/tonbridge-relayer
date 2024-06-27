@@ -136,21 +136,10 @@ export default class TonBlockProcessor {
     const vdata = await this.getMasterchainBlockValSignatures(blockId.seqno);
     console.log("vdata length: ", vdata.length);
     const blockHeader = await this.liteClient.getBlockHeader(blockId);
-    const blockInfo = await this.liteClient.engine.query(
-      Functions.liteServer_getBlock,
-      {
-        kind: "liteServer.getBlock",
-        id: {
-          kind: "tonNode.blockIdExt",
-          ...blockId,
-        },
-      }
-    );
 
     await this.validator.verifyMasterchainBlockByValidatorSignatures({
       blockHeaderProof: blockHeader.headerProof.toString("hex"),
-      blockBoc: blockInfo.data.toString("hex"),
-      fileHash: blockInfo.id.fileHash.toString("hex"),
+      fileHash: blockHeader.id.fileHash.toString("hex"),
       vdata,
     });
     console.log(`verified masterchain block ${blockId.seqno} successfully`);
@@ -246,7 +235,6 @@ export default class TonBlockProcessor {
   }
 
   async verifyShardBlocks(shardId: BlockID) {
-
     const isBlockVerified = await this.validator.isVerifiedBlock({
       rootHash: shardId.rootHash.toString("hex"),
     });

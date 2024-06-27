@@ -38,7 +38,6 @@ export default class TonTxProcessor {
     };
     while (true) {
       // workaround. Bug of loadTransaction that causes the prev trans hash to be incomplete
-      // workaround. Bug of loadTransaction that causes the prev trans hash to be incomplete
       if (offset.hash.length === 63) {
         offset.hash = "0" + offset.hash;
         console.log("new offset hash: ", offset.hash);
@@ -134,7 +133,6 @@ export default class TonTxProcessor {
     await this.bridge.readTransaction({
       txBoc: txWithProof.transaction.toString("hex"),
       txProof: txWithProof.proof.toString("hex"),
-      validatorContractAddr: this.validator.contractAddress,
     });
 
     console.log(
