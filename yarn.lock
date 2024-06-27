@@ -2653,7 +2653,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oraichain/tonbridge-relayer-to-cw@workspace:packages/ton-to-cw":
+"@oraichain/tonbridge-orchestrator@workspace:packages/orchestrator":
+  version: 0.0.0-use.local
+  resolution: "@oraichain/tonbridge-orchestrator@workspace:packages/orchestrator"
+  dependencies:
+    "@oraichain/tonbridge-relayer-to-cw": "workspace:^"
+    "@types/express": "npm:^4"
+    dotenv: "npm:^16.4.5"
+    express: "npm:^4.19.2"
+  languageName: unknown
+  linkType: soft
+
+"@oraichain/tonbridge-relayer-to-cw@workspace:^, @oraichain/tonbridge-relayer-to-cw@workspace:packages/ton-to-cw":
   version: 0.0.0-use.local
   resolution: "@oraichain/tonbridge-relayer-to-cw@workspace:packages/ton-to-cw"
   dependencies:
@@ -2672,10 +2683,8 @@ __metadata:
     "@ton/core": "npm:^0.56.3"
     "@ton/crypto": "npm:^3.2.0"
     "@ton/ton": "npm:^13.11.1"
-    "@types/express": "npm:^4"
     bignumber.js: "npm:^9.1.2"
     cosmjs-types: "npm:0.8.0"
-    express: "npm:^4.19.2"
     ton-lite-client: "npm:^3.0.0"
     tonweb: "npm:^0.0.66"
   languageName: unknown

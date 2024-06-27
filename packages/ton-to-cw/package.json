@@ -27,12 +27,8 @@
     "@ton/ton": "^13.11.1",
     "bignumber.js": "^9.1.2",
     "cosmjs-types": "0.8.0",
-    "express": "^4.19.2",
     "ton-lite-client": "^3.0.0",
     "tonweb": "^0.0.66"
   },
-  "license": "MIT",
-  "devDependencies": {
-    "@types/express": "^4"
-  }
+  "license": "MIT"
 }
