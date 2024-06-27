@@ -2653,15 +2653,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oraichain/tonbridge-relayer-common@workspace:packages/common":
-  version: 0.0.0-use.local
-  resolution: "@oraichain/tonbridge-relayer-common@workspace:packages/common"
-  dependencies:
-    "@ton/core": "npm:^0.56.3"
-    "@ton/ton": "npm:^13.11.1"
-  languageName: unknown
-  linkType: soft
-
 "@oraichain/tonbridge-relayer-to-cw@workspace:packages/ton-to-cw":
   version: 0.0.0-use.local
   resolution: "@oraichain/tonbridge-relayer-to-cw@workspace:packages/ton-to-cw"
@@ -2687,12 +2678,6 @@ __metadata:
     express: "npm:^4.19.2"
     ton-lite-client: "npm:^3.0.0"
     tonweb: "npm:^0.0.66"
-  languageName: unknown
-  linkType: soft
-
-"@oraichain/tonbridge-relayer-to-ton@workspace:packages/cw-to-ton":
-  version: 0.0.0-use.local
-  resolution: "@oraichain/tonbridge-relayer-to-ton@workspace:packages/cw-to-ton"
   languageName: unknown
   linkType: soft
 
