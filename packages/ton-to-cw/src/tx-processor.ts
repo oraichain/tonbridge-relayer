@@ -7,6 +7,8 @@ import { StringHex, TransactionWithBlockId } from "src/@types/block";
 import { LiteClient } from "ton-lite-client";
 import TonBlockProcessor from "./block-processor";
 import { setTimeout } from "timers/promises";
+import TonRocks from "@oraichain/tonbridge-utils";
+import { loadTransaction as loadTransactionTonRocks } from "@oraichain/tonbridge-utils/build/blockchain/BlockParser";
 
 export default class TonTxProcessor {
   private limitPerTxQuery = 100; // limit per query
@@ -116,11 +118,33 @@ export default class TonTxProcessor {
     });
     if (isTxProcessed) return;
 
-    // it means this tx is in a shard block -> we verify shard blocks along with materchain block
-    if (tx.blockId.workchain !== -1) {
-      await this.blockProcessor.verifyShardBlocks(tx.blockId);
-    } else {
-      await this.blockProcessor.verifyMasterchainBlockByBlockId(tx.blockId);
+    const messages = tx.tx.outMessages.values();
+    const txHash = tx.tx.hash().toString("hex");
+    let hasExternalOutMessage = false;
+    for (const message of messages) {
+      if (message.info.type === "external-out") {
+        hasExternalOutMessage = true;
+        break;
+      }
+    }
+    if (!hasExternalOutMessage) {
+      console.log(
+        `Transaction ${txHash} does not have an external out message. We ignore it.`
+      );
+      return;
+    }
+    try {
+      // it means this tx is in a shard block -> we verify shard blocks along with materchain block
+      if (tx.blockId.workchain !== -1) {
+        await this.blockProcessor.verifyShardBlocks(tx.blockId);
+      } else {
+        await this.blockProcessor.verifyMasterchainBlockByBlockId(tx.blockId);
+      }
+    } catch (error) {
+      console.log(
+        `Cannot verify blocks related to transaction ${txHash} because: ${error}`
+      );
+      return;
     }
 
     const jettonAddr = address(this.jettonBridgeAddress);
