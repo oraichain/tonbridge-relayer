@@ -142,7 +142,7 @@ export function intToIP(int: number) {
     bridge,
     liteClient,
     blockProcessor,
-    "EQARXqu9hEzxsSP5ZdI5n3gv5XxFJQu8uPvEt0IJOwadzfA0"
+    "EQAwHLrVuAOgcA1x53KDXxyAL5ETqQFaAa7tT0wIi7UOrkNS"
     // "b4c796dc353687b1b571da07ef428e1d90eeac4922c8c2ee19b82a41dd66cac3"
   );
 
