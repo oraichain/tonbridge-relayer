@@ -1,6 +1,5 @@
 {
   "name": "root",
-  "private": "true",
   "license": "MIT",
   "scripts": {
     "postinstall": "patch-package",
@@ -8,7 +7,7 @@
     "clean": "lerna clean --yes && lerna exec -- rimraf build/ dist/ cache/",
     "build": "lerna run build --concurrency 1",
     "build-tsc": "tsc -p",
-    "deploy": "yarn publish --access public",
+    "deploy": "yarn lerna publish",
     "prepare": "husky install",
     "build:docker": "lerna run build --concurrency 1"
   },
@@ -59,5 +58,6 @@
     "typedoc": "^0.25.12",
     "typescript": "5.4.5"
   },
-  "version": "1.0.1"
+  "version": "1.0.1",
+  "packageManager": "yarn@4.3.1"
 }

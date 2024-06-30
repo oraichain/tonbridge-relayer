@@ -19,7 +19,7 @@ import {
 import TonWeb from "tonweb";
 import TonBlockProcessor from "./block-processor";
 import TonTxProcessor from "./tx-processor";
-import TonToCwRelayer from "./index";
+import TonToCwRelayer from ".";
 import dotenv from "dotenv";
 import { InstantiateMsg } from "@oraichain/tonbridge-contracts-sdk/build/TonbridgeBridge.types";
 dotenv.config();
@@ -82,10 +82,12 @@ export function intToIP(int: number) {
     client,
     sender,
     {
+      bridge_adapter: "EQAE8anZidQFTKcsKS_98iDEXFkvuoa1YmVPxQC279zAoV7R",
       relayer_fee_token: { native_token: { denom: ORAI } },
       relayer_fee_receiver: sender,
       swap_router_contract: sender,
       token_fee_receiver: sender,
+      validator_contract_addr: validatorDeployResult.contractAddress,
     } as InstantiateMsg,
     "bridge-bridge",
     "cw-tonbridge-bridge"
@@ -140,7 +142,7 @@ export function intToIP(int: number) {
     bridge,
     liteClient,
     blockProcessor,
-    "EQARXqu9hEzxsSP5ZdI5n3gv5XxFJQu8uPvEt0IJOwadzfA0"
+    "EQAwHLrVuAOgcA1x53KDXxyAL5ETqQFaAa7tT0wIi7UOrkNS"
     // "b4c796dc353687b1b571da07ef428e1d90eeac4922c8c2ee19b82a41dd66cac3"
   );
 
