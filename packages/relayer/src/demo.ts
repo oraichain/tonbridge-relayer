@@ -182,6 +182,7 @@ import * as whiteListDenomBuild from "@oraichain/ton-bridge-contracts/build/Whit
   const transferCw20 = await bridgeWasm.transferToTon({
     to: user.address.toString(),
     denom: jettonMinterSrcCosmos.address.toString(),
+    seq: 0,
     amount: "1000000000",
     crcSrc: Src.COSMOS.toString(),
   });
@@ -189,6 +190,7 @@ import * as whiteListDenomBuild from "@oraichain/ton-bridge-contracts/build/Whit
   const transferJetton = await bridgeWasm.transferToTon({
     to: user.address.toString(),
     denom: jettonMinterSrcTon.address.toString(),
+    seq: 0,
     amount: "1000000000",
     crcSrc: Src.TON.toString(),
   });

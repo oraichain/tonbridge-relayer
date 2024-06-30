@@ -3,7 +3,7 @@ import {
   TonbridgeValidatorInterface,
 } from "@oraichain/tonbridge-contracts-sdk";
 import { Cell, address, loadTransaction } from "@ton/core";
-import { StringHex, TransactionWithBlockId } from "src/@types/block";
+import { StringHex, TransactionWithBlockId } from "../src/@types/block";
 import { LiteClient } from "ton-lite-client";
 import TonBlockProcessor from "./block-processor";
 import { setTimeout } from "timers/promises";

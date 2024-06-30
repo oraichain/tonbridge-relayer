@@ -2955,16 +2955,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oraichain/ton-bridge-contracts@npm:^0.11.0":
-  version: 0.11.0
-  resolution: "@oraichain/ton-bridge-contracts@npm:0.11.0"
+"@oraichain/ton-bridge-contracts@npm:^0.13.0":
+  version: 0.13.0
+  resolution: "@oraichain/ton-bridge-contracts@npm:0.13.0"
   dependencies:
     "@orbs-network/ton-access": "npm:^2.3.3"
     "@types/varstruct": "npm:^6.1.3"
     cosmjs-types: "npm:^0.9.0"
     dotenv: "npm:^16.4.5"
     varstruct: "npm:^6.1.3"
-  checksum: 10c0/6952464fbc4981b2cb8322646d778bca147889de5d16f541995ebf8bbfdcb902e596aa92c53f2f7d95408524e3213215b2d8c2a866a746ce1c069041f49a7432
+  checksum: 10c0/45cd8b05ed8a58ec43c436c84ca44f1ec8a778964fc8b4c728c43161ac4203b1fc0e19bf090f6de81ae58f6283094f901cbbdffdde6eed6bd7b9a3e274eb4830
   languageName: node
   linkType: hard
 
@@ -3031,7 +3031,7 @@ __metadata:
     "@cosmjs/stargate": "npm:^0.32.3"
     "@oraichain/cosmos-rpc-sync": "npm:^1.0.11"
     "@oraichain/oraidex-common": "npm:^1.0.88-beta.1"
-    "@oraichain/ton-bridge-contracts": "npm:^0.11.0"
+    "@oraichain/ton-bridge-contracts": "npm:^0.13.0"
     "@orbs-network/ton-access": "npm:^2.3.3"
     "@ton/core": "npm:^0.56.3"
     "@ton/crypto": "npm:^3.2.0"

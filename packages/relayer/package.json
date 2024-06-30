@@ -18,7 +18,7 @@
     "@cosmjs/stargate": "^0.32.3",
     "@oraichain/cosmos-rpc-sync": "^1.0.11",
     "@oraichain/oraidex-common": "^1.0.88-beta.1",
-    "@oraichain/ton-bridge-contracts": "^0.11.0",
+    "@oraichain/ton-bridge-contracts": "^0.13.0",
     "@orbs-network/ton-access": "^2.3.3",
     "@ton/core": "^0.56.3",
     "@ton/crypto": "^3.2.0",
