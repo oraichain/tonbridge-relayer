@@ -7,7 +7,8 @@
     "@types"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "start": "tsx src/start.ts"
   },
   "dependencies": {
     "@cosmjs/amino": "0.31.3",

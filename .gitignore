@@ -132,6 +132,9 @@ dist
 .nx
 **/packages/*/build/
 
+# data
+*.duckdb
+*.duckdb.*
 # Yarn 3 files
 .pnp.*
 .yarn/*
