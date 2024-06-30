@@ -75,6 +75,7 @@ import { WalletContractV4 } from "@ton/ton";
   const transferCw20 = await bridgeWasm.transferToTon({
     to: userWallet.address.toString(),
     denom: jettonSrcCosmos,
+    seq: 0,
     amount: toNano(10).toString(),
     crcSrc: Src.COSMOS.toString(),
   });
@@ -83,6 +84,7 @@ import { WalletContractV4 } from "@ton/ton";
   const transferJetton = await bridgeWasm.transferToTon({
     to: userWallet.address.toString(),
     denom: jettonSrcTon,
+    seq: 0,
     amount: toNano(10).toString(),
     crcSrc: Src.TON.toString(),
   });

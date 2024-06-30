@@ -1,6 +1,6 @@
 {
   "name": "@oraichain/tonbridge-relayer",
-  "version": "1.0.0",
+  "version": "1.0.8",
   "main": "build/index.js",
   "files": [
     "build/",
@@ -16,10 +16,10 @@
     "@cosmjs/encoding": "^0.32.3",
     "@cosmjs/proto-signing": "^0.32.3",
     "@cosmjs/stargate": "^0.32.3",
-    "@oraichain/cosmos-rpc-sync": "next",
+    "@oraichain/cosmos-rpc-sync": "^1.0.11",
     "@oraichain/oraidex-common": "^1.0.88-beta.1",
     "@oraichain/ton-bridge-contracts": "^0.11.0",
-    "@orbs-network/ton-access": "orbs-network/ton-access",
+    "@orbs-network/ton-access": "^2.3.3",
     "@ton/core": "^0.56.3",
     "@ton/crypto": "^3.2.0",
     "@ton/ton": "^13.11.2",
