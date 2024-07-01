@@ -8,4 +8,5 @@ export const Src = {
 
 export const Recv = {
   TIMEOUT_RECV_PACKET: crc32("recv::timeout_recv_packet"),
+  RECV_PACKET: crc32("recv::recv_packet"),
 };
