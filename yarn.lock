@@ -2639,17 +2639,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oraichain/tonbridge-contracts-build@npm:latest":
-  version: 1.0.6
-  resolution: "@oraichain/tonbridge-contracts-build@npm:1.0.6"
-  checksum: 10c0/cf7f0e4790428d86450e802181d4a9d07216556c8b21110d80566e4d425ed87ed54ee9e6282082458cd720f024b8f7618cf876f54122596d54c6e0cc4e8d4db9
+"@oraichain/tonbridge-contracts-build@npm:^1.2.1":
+  version: 1.2.1
+  resolution: "@oraichain/tonbridge-contracts-build@npm:1.2.1"
+  checksum: 10c0/ec4952dd250bb6e0276647bba8904e14db2bd4c4f9e229de5cf5ca7d81302ca0333fceebad34e33fc3b76510e3493acec1dfe23e3349945c4333f5b022ad6d53
   languageName: node
   linkType: hard
 
-"@oraichain/tonbridge-contracts-sdk@npm:latest":
-  version: 1.0.2
-  resolution: "@oraichain/tonbridge-contracts-sdk@npm:1.0.2"
-  checksum: 10c0/5ee31a28f3bf3972dfe64b2a2d3b802f5b296325df68bdc28ed8f01cb7a787ec9e5416921277702f04553a6c88d9bda46e544e3e846527de3dd6825e6268c4ca
+"@oraichain/tonbridge-contracts-sdk@npm:^1.2.1":
+  version: 1.2.1
+  resolution: "@oraichain/tonbridge-contracts-sdk@npm:1.2.1"
+  checksum: 10c0/9ea594059db0e9032eea319d35a08c06257e7dcdb67fad59724c627eb3d89bcd6cc8857524e08060ffb42bdf78f3657a93e31da3f42da475680683e9feff38d5
   languageName: node
   linkType: hard
 
@@ -2676,8 +2676,8 @@ __metadata:
     "@cosmjs/tendermint-rpc": "npm:0.31.3"
     "@oraichain/oraidex-common": "npm:latest"
     "@oraichain/oraidex-contracts-sdk": "npm:latest"
-    "@oraichain/tonbridge-contracts-build": "npm:latest"
-    "@oraichain/tonbridge-contracts-sdk": "npm:latest"
+    "@oraichain/tonbridge-contracts-build": "npm:^1.2.1"
+    "@oraichain/tonbridge-contracts-sdk": "npm:^1.2.1"
     "@oraichain/tonbridge-utils": "npm:^1.0.0"
     "@orbs-network/ton-access": "npm:^2.3.3"
     "@ton/core": "npm:^0.56.3"
