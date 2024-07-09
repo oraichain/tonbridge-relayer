@@ -112,14 +112,13 @@ export default class TonTxProcessor {
   }
 
   async processTransaction(tx: TransactionWithBlockId) {
-    const txHashHex = tx.tx.hash().toString("hex");
+    const txHash = tx.tx.hash().toString("hex");
     const isTxProcessed = await this.bridge.isTxProcessed({
-      txHash: txHashHex,
+      txHash: txHash,
     });
     if (isTxProcessed) return;
 
     const messages = tx.tx.outMessages.values();
-    const txHash = tx.tx.hash().toString("hex");
     let hasExternalOutMessage = false;
     for (const message of messages) {
       if (message.info.type === "external-out") {
@@ -160,7 +159,7 @@ export default class TonTxProcessor {
     });
 
     console.log(
-      `Verified tx with hash ${txHashHex} in block ${tx.blockId.seqno} successfully`
+      `Verified tx with hash ${txHash} in block ${tx.blockId.seqno} successfully`
     );
   }
 }
