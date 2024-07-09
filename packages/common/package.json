@@ -11,7 +11,7 @@
     "build/"
   ],
   "dependencies": {
-    "@ton/ton": "^13.11.1",
-    "@ton/core": "^0.56.3"
+    "@ton/core": "^0.56.3",
+    "@ton/ton": "^13.11.1"
   }
 }
