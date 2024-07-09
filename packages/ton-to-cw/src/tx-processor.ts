@@ -25,7 +25,7 @@ export default class TonTxProcessor {
   }
 
   private async queryUnprocessedTransactions() {
-    let transactions: TransactionWithBlockId[] = [];
+    const transactions: TransactionWithBlockId[] = [];
     const jettonAddr = address(this.jettonBridgeAddress);
     const masterchainInfo = await this.liteClient.getMasterchainInfo();
     const accState = await this.liteClient.getAccountState(
