@@ -9,5 +9,29 @@
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@cosmjs/cosmwasm-stargate": "^0.32.3",
+    "@cosmjs/crypto": "^0.32.3",
+    "@cosmjs/encoding": "^0.32.3",
+    "@cosmjs/proto-signing": "^0.32.3",
+    "@cosmjs/stargate": "^0.32.3",
+    "@oraichain/cosmos-rpc-sync": "^1.0.11",
+    "@oraichain/oraidex-common": "^1.0.88-beta.1",
+    "@oraichain/ton-bridge-contracts": "^0.10.1",
+    "@orbs-network/ton-access": "^2.3.3",
+    "@ton/core": "^0.56.3",
+    "@ton/crypto": "^3.2.0",
+    "@ton/ton": "^13.11.2",
+    "bullmq": "^5.7.15",
+    "dotenv": "^16.4.5",
+    "duckdb": "^1.0.0",
+    "duckdb-async": "^1.0.0"
+  },
+  "devDependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
+    "@cosmjs/crypto": "^0.32.3",
+    "@ton/sandbox": "^0.20.0",
+    "tsconfig-paths": "^4.2.0"
+  }
 }
