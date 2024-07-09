@@ -1,15 +1,19 @@
 import { SyncDataOptions, Txs } from "@oraichain/cosmos-rpc-sync";
-import { BridgeParsedData } from "./@types/interfaces/cosmwasm";
+import { Packet, Packets } from "./@types/interfaces/cosmwasm";
 import { envConfig } from "./config";
 import {
   createCosmosBridgeWatcher,
   CosmwasmWatcherEvent,
-  createUpdateClientData,
+  createUpdateClientData as getLightClientDataAtBlock,
 } from "@src/services/cosmos.service";
 import { DuckDb } from "./services/duckdb.service";
 import { CosmosBlockOffset } from "./models/cosmwasm/block-offset";
-import { CosmosWorkerJob, TonWorkerJob } from "./worker";
+import { CosmosWorkerJob, RelayCosmwasmData, TonWorkerJob } from "./worker";
 import { ConnectionOptions, Queue } from "bullmq";
+import { getPacketProofs } from "@oraichain/ton-bridge-contracts";
+import { Tendermint37Client } from "@cosmjs/tendermint-rpc";
+import { QueryClient } from "@cosmjs/stargate";
+import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 
 //@ts-ignore
 BigInt.prototype.toJSON = function () {
@@ -49,6 +53,11 @@ export async function relay() {
   if (envConfig.WASM_BRIDGE === "") {
     throw new Error("WASM_BRIDGE is required");
   }
+  const tendermint37 = await Tendermint37Client.connect(
+    envConfig.COSMOS_RPC_URL
+  );
+  const queryClient = new QueryClient(tendermint37 as any);
+
   const cosmosWatcher = createCosmosBridgeWatcher(
     envConfig.WASM_BRIDGE,
     syncDataOpt
@@ -60,37 +69,50 @@ export async function relay() {
     console.log("[SYNC_DATA] Update new offset at", newOffset);
   });
   // LISTEN ON THE PARSED_DATA FROM WATCHER
-  cosmosWatcher.on(
-    CosmwasmWatcherEvent.PARSED_DATA,
-    async (data: BridgeParsedData) => {
-      const { submitData, submittedTxs } = data;
-      // Submitting serialized data to cosmwasm bridge
-      const submitDataQueue = submitData.map((tx) => {
-        return {
-          name: CosmosWorkerJob.SubmitData,
-          data: tx,
-        };
-      });
-      await cosmosQueue.addBulk(submitDataQueue);
-      // Relaying submitted transaction by relayer
-      const updateClientDataPromise = submittedTxs.map((tx) =>
-        createUpdateClientData(envConfig.COSMOS_RPC_URL, tx.height)
-      );
-      const updateClientData = await Promise.all(updateClientDataPromise);
+  cosmosWatcher.on(CosmwasmWatcherEvent.PARSED_DATA, async (data: Packets) => {
+    const { packets } = data;
+    const lastPackets = packets[packets.length - 1];
+    const provenHeight = lastPackets.height;
+    const neededProvenHeight = provenHeight + 1;
 
-      const relayDataQueue = updateClientData.map((clientData, i) => {
-        return {
-          name: TonWorkerJob.RelayCosmWasmData,
-          data: {
-            data: submittedTxs[i].data,
-            clientData: clientData,
-            txHash: submittedTxs[i].hash,
-          },
-        };
-      });
-      await tonQueue.addBulk(relayDataQueue);
-    }
-  );
+    const updateLightClientData = await getLightClientDataAtBlock(
+      envConfig.COSMOS_RPC_URL,
+      neededProvenHeight
+    );
+
+    const promiseProofs = packets.map((packet) => {
+      const seq = packet.data.beginParse().preloadUint(64);
+      return getPacketProofs(
+        queryClient as any,
+        envConfig.WASM_BRIDGE,
+        provenHeight,
+        BigInt(seq)
+      ) as Promise<ExistenceProof[]>;
+    });
+
+    const proofs = await Promise.all(promiseProofs);
+
+    const allProofAndPacket = packets.map((packet, i) => {
+      return {
+        packetBoc: packet.data.toBoc().toString("hex"),
+        proofs: proofs[i],
+      };
+    });
+
+    const relayDataQueue = allProofAndPacket.map((proofAndPacket) => {
+      return {
+        name: TonWorkerJob.RelayPacket,
+        data: {
+          data: proofAndPacket,
+          clientData: updateLightClientData,
+          provenHeight: neededProvenHeight,
+        } as RelayCosmwasmData,
+      };
+    });
+
+    await tonQueue.addBulk(relayDataQueue);
+  });
+
   console.log("[RELAY] Start watching cosmos chain");
   await cosmosWatcher.start();
 }

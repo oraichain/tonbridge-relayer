@@ -4,45 +4,39 @@ import {
   SyncDataOptions,
   Txs,
 } from "@oraichain/cosmos-rpc-sync";
-import { Address, beginCell } from "@ton/core";
+import { beginCell } from "@ton/core";
 import { Event } from "@cosmjs/stargate";
 import { parseWasmEvents } from "@oraichain/oraidex-common";
 import { Log } from "@cosmjs/stargate/build/logs";
 import { EventEmitter } from "stream";
 import { BasicTxInfo } from "@src/@types/common";
-import {
-  BridgeParsedData,
-  ICosmwasmParser,
-} from "@src/@types/interfaces/cosmwasm";
+import { Packets, ICosmwasmParser } from "@src/@types/interfaces/cosmwasm";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
+import { LightClientData } from "@src/@types/interfaces/cosmwasm/serialized";
+import { checkTonDenom } from "@src/utils";
 import {
+  BridgeAdapterPacketOpcodes,
   serializeCommit,
   serializeHeader,
   serializeValidator,
-} from "@src/utils";
-import {
-  LightClientData,
-  SerializedTx,
-} from "@src/@types/interfaces/cosmwasm/serialized";
+} from "@oraichain/ton-bridge-contracts";
 
-export const enum BRIDGE_ACTION {
-  TRANSFER_TO_TON = "transfer_to_ton",
-  RELAYER_SUBMIT = "submit_bridge_to_ton_info",
+export const enum BRIDGE_WASM_ACTION {
+  BRIDGE_TO_TON = "bridge_to_ton",
 }
 
-export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
+export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
   constructor(private bridgeWasmAddress: string) {}
 
-  processChunk(chunk: Txs): BridgeParsedData {
+  processChunk(chunk: Txs): Packets {
     const { txs } = chunk;
-    const submittedTxs = [];
-    const submitData = [];
+    const packets = [];
     const allBridgeData = txs
       .filter((tx) => tx.code === 0)
       .flatMap((tx) => {
         const logs: Log[] = JSON.parse(tx.rawLog);
         return logs.map((log) =>
-          this.extractEventToBridgeData(
+          this.extractEventToPacket(
             log.events,
             tx.hash,
             tx.height,
@@ -50,25 +44,19 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
           )
         );
       })
-      .filter(
-        (data) => data.submittedTxs.length > 0 || data.submitData.length > 0
-      );
-
+      .filter((data) => data.packetTransfer.length > 0);
     allBridgeData.forEach((data) => {
-      submittedTxs.push(...data.submittedTxs);
-      submitData.push(...data.submitData);
+      packets.push(...data.packetTransfer);
     });
+
     return {
-      submittedTxs: submittedTxs.toSorted(
-        (a: BasicTxInfo, b: BasicTxInfo) => a.height - b.height
-      ),
-      submitData: submitData.toSorted(
+      packets: packets.toSorted(
         (a: BasicTxInfo, b: BasicTxInfo) => a.height - b.height
       ),
     };
   }
 
-  extractEventToBridgeData(
+  extractEventToPacket(
     events: readonly Event[],
     hash: string,
     height: number,
@@ -83,58 +71,48 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<BridgeParsedData> {
     const filterByContractAddress = (attr: Record<string, string>) =>
       attr["_contract_address"] === this.bridgeWasmAddress;
     // This action come from user need to normalize and submit by relayer.
-    const transferToTon = wasmAttr
+    const packetTransferToTon = wasmAttr
       .filter(filterByContractAddress)
-      .filter((attr) => attr["action"] === BRIDGE_ACTION.TRANSFER_TO_TON);
-    // This action come from relayer need to relay to TON.
-    const relayerSubmitEvent = wasmAttr
-      .filter(filterByContractAddress)
-      .filter((attr) => attr["action"] === BRIDGE_ACTION.RELAYER_SUBMIT)
-      .map((attr) => {
-        return {
-          ...attr,
-          ...basicInfo,
-        };
-      });
+      .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.BRIDGE_TO_TON);
     // parse event to `to, denom, amount, crcSrc`
-    const submitData = transferToTon.map((attr) => {
+    const packetTransfer = packetTransferToTon.map((attr) => {
       return {
-        data: this.transformToSubmitActionCell(
+        data: this.transformToTransferPacket(
           Number(attr["seq"]),
           attr["dest_receiver"],
           attr["dest_denom"],
           BigInt(attr["remote_amount"]),
-          BigInt(attr["crc_src"])
+          BigInt(attr["crc_src"]),
+          BigInt(attr["timeout"]),
+          attr["local_sender"]
         ),
         ...basicInfo,
       };
     });
     return {
-      submittedTxs: relayerSubmitEvent.length > 0 ? relayerSubmitEvent : [],
-      submitData: submitData.length > 0 ? submitData : [],
+      packetTransfer: packetTransfer.length > 0 ? packetTransfer : [],
     };
   }
 
-  transformToSubmitActionCell(
+  transformToTransferPacket(
     seq: number,
     to: string,
     denom: string,
     amount: bigint,
-    crcSrc: bigint
+    crcSrc: bigint,
+    timeout: bigint,
+    local_sender: string
   ) {
-    return Buffer.from(
-      beginCell()
-        .storeUint(seq, 64)
-        .storeAddress(Address.parse(to))
-        .storeAddress(Address.parse(denom))
-        .storeUint(amount, 128)
-        .storeUint(crcSrc, 32)
-        .endCell()
-        .bits.toString(),
-      "hex"
-    )
-      .toString("hex")
-      .toUpperCase();
+    return beginCell()
+      .storeUint(seq, 64)
+      .storeUint(BridgeAdapterPacketOpcodes.sendToTon, 32)
+      .storeUint(crcSrc, 32)
+      .storeAddress(checkTonDenom(to))
+      .storeAddress(checkTonDenom(denom))
+      .storeUint(amount, 128)
+      .storeUint(timeout, 64)
+      .storeRef(beginCell().storeBuffer(Buffer.from(local_sender)).endCell())
+      .endCell();
   }
 }
 
@@ -160,8 +138,8 @@ export class CosmwasmWatcher<T> extends EventEmitter {
     this.running = true;
     await this.syncData.start();
     this.syncData.on(CHANNEL.QUERY, async (chunk: Txs) => {
-      const parsedData = this.cosmwasmParser.processChunk(chunk);
-      if (parsedData) {
+      const parsedData = this.cosmwasmParser.processChunk(chunk) as Packets;
+      if (parsedData && parsedData.packets.length > 0) {
         this.emit(CosmwasmWatcherEvent.PARSED_DATA, parsedData);
       }
 
@@ -182,7 +160,7 @@ export const createUpdateClientData = async (
       block: { lastCommit },
     },
     {
-      block: { header, txs },
+      block: { header },
     },
     { validators },
   ] = await Promise.all([
@@ -198,7 +176,6 @@ export const createUpdateClientData = async (
     validators: validators.map(serializeValidator),
     lastCommit: serializeCommit(lastCommit),
     header: serializeHeader(header),
-    txs: txs.map((tx) => Buffer.from(tx).toString("hex")) as SerializedTx[],
   };
 };
 

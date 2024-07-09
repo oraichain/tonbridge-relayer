@@ -56,5 +56,4 @@ export type LightClientData = {
   validators: SerializedValidator[];
   lastCommit: SerializedCommit;
   header: SerializedHeader;
-  txs: SerializedTx[];
 };

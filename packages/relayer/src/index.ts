@@ -1,45 +1,24 @@
 import { envConfig } from "./config";
-import { Address, beginCell } from "@ton/core";
+import { Address, beginCell, Cell } from "@ton/core";
 import {
-  LightClient,
   BridgeAdapter,
   Src,
   JettonMinter,
   JettonWallet,
+  LightClientMaster,
 } from "@oraichain/ton-bridge-contracts";
 import { ConnectionOptions } from "bullmq";
-import { createCosmosWorker, createTonWorker } from "./worker";
+import { createTonWorker } from "./worker";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import { ReadWriteStateClient } from "./contracts/cosmwasm/mock";
 import { GasPrice } from "@cosmjs/stargate";
 import { createTonWallet } from "./utils";
 import { Network } from "@orbs-network/ton-access";
 import { relay } from "./relay";
+import { WalletContractV4 } from "@ton/ton";
 
 (async () => {
   // Setup All Client
-  // Cosmwasm
-  const cosmosWallet = await DirectSecp256k1HdWallet.fromMnemonic(
-    envConfig.TON_MNEMONIC,
-    {
-      prefix: "orai",
-    }
-  );
-  const accounts = await cosmosWallet.getAccounts();
-  const cosmosClient = await SigningCosmWasmClient.connectWithSigner(
-    envConfig.COSMOS_RPC_URL,
-    cosmosWallet,
-    {
-      gasPrice: GasPrice.fromString("0.002orai"),
-      broadcastPollIntervalMs: 500,
-    }
-  );
-  const bridgeWasm = new ReadWriteStateClient(
-    cosmosClient,
-    accounts[0].address,
-    envConfig.WASM_BRIDGE
-  );
   // TON
   const {
     walletContract,
@@ -47,16 +26,16 @@ import { relay } from "./relay";
     key,
   } = await createTonWallet(
     envConfig.TON_MNEMONIC,
-    process.env.NODE_ENV as Network,
-    envConfig.TON_CENTER
+    process.env.NODE_ENV as Network
   );
-  const lightClient = LightClient.createFromAddress(
-    Address.parse(envConfig.COSMOS_LIGHT_CLIENT)
+  const lightClientMaster = LightClientMaster.createFromAddress(
+    Address.parse(envConfig.COSMOS_LIGHT_CLIENT_MASTER)
   );
   const bridgeAdapter = BridgeAdapter.createFromAddress(
     Address.parse(envConfig.TON_BRIDGE)
   );
-  const lightClientContract = tonClient.open(lightClient);
+
+  const lightClientMasterContract = tonClient.open(lightClientMaster);
   const bridgeAdapterContract = tonClient.open(bridgeAdapter);
 
   // Run workers
@@ -66,29 +45,32 @@ import { relay } from "./relay";
   };
   const tonWorker = createTonWorker(
     connection,
+    walletContract,
     walletContract.sender(key.secretKey),
-    lightClientContract,
+    tonClient,
+    lightClientMasterContract,
     bridgeAdapterContract
   );
-  const cosmosWorker = createCosmosWorker(connection, bridgeWasm);
   tonWorker.run();
-  cosmosWorker.run();
   // Start watching
   await relay();
   tonWorker.on("completed", async (job) => {
-    const data = job.data;
-    const cellBuffer = data.data;
-    const sliceData = beginCell()
-      .storeBuffer(Buffer.from(cellBuffer, "hex"))
-      .endCell()
-      .beginParse();
-    const to = sliceData.loadAddress();
-    const denom = sliceData.loadAddress();
-    const amount = sliceData.loadUint(128);
-    const crcSrc = sliceData.loadUint(32);
+    const { data, provenHeight, clientData } = job.data;
+    const { packetBoc, proofs } = data;
+    const packet = Cell.fromBoc(Buffer.from(packetBoc, "hex"))[0];
+    const packetSlice = packet.beginParse();
+    const seq = packetSlice.loadUint(64);
+    const packet_op = packetSlice.loadUint(32);
+    const crcSrc = packetSlice.loadUint(32);
+    const to = packetSlice.loadAddress();
+    const denom = packetSlice.loadMaybeAddress();
+    const amount = packetSlice.loadUint(128);
+    const timeout = packetSlice.loadUint(64);
     if (crcSrc === Src.COSMOS) {
       console.log(
-        "[TON-WORKER-EVENT-COMPLETED] Success transferTo",
+        "[TON-WORKER-EVENT-COMPLETED] Success transfer packet",
+        seq,
+        "to",
         to.toString(),
         amount,
         denom.toString(),
@@ -105,7 +87,7 @@ import { relay } from "./relay";
       const userJettonWalletContract = tonClient.open(userJettonWalletBalance);
       const balance = await userJettonWalletContract.getBalance();
       console.log(
-        "[TON-WORKER-EVENT-COMPLETED] user",
+        "[TON-WORKER-EVENT-COMPLETED] User",
         to.toString(),
         "balance",
         balance.amount,
@@ -114,28 +96,42 @@ import { relay } from "./relay";
       );
     } else {
       console.log(
-        "[TON-WORKER-EVENT-COMPLETED] Success transferTo",
+        "[TON-WORKER-EVENT-COMPLETED] Success packet",
+        seq,
+        "to",
         to.toString(),
         amount,
         denom.toString(),
         "src::ton"
       );
-      const jettonMinterSrcTon = JettonMinter.createFromAddress(denom);
-      const jettonMinterSrcTonContract = tonClient.open(jettonMinterSrcTon);
-      const userJettonWallet =
-        await jettonMinterSrcTonContract.getWalletAddress(to);
-      const userJettonWalletBalance =
-        JettonWallet.createFromAddress(userJettonWallet);
-      const userJettonWalletContract = tonClient.open(userJettonWalletBalance);
-      const balance = await userJettonWalletContract.getBalance();
-      console.log(
-        "[TON-WORKER-EVENT-COMPLETED] user",
-        to.toString(),
-        "balance",
-        balance.amount,
-        "denom",
-        jettonMinterSrcTon.address.toString()
-      );
+      if (denom) {
+        const jettonMinterSrcTon = JettonMinter.createFromAddress(denom);
+        const jettonMinterSrcTonContract = tonClient.open(jettonMinterSrcTon);
+        const userJettonWallet =
+          await jettonMinterSrcTonContract.getWalletAddress(to);
+        const userJettonWalletBalance =
+          JettonWallet.createFromAddress(userJettonWallet);
+        const userJettonWalletContract = tonClient.open(
+          userJettonWalletBalance
+        );
+        const balance = await userJettonWalletContract.getBalance();
+        console.log(
+          "[TON-WORKER-EVENT-COMPLETED] user",
+          to.toString(),
+          "balance",
+          balance.amount,
+          "denom",
+          jettonMinterSrcTon.address.toString()
+        );
+      } else {
+        const balance = await tonClient.getBalance(to);
+        console.log(
+          "[TON-WORKER-EVENT-COMPLETED] user",
+          to.toString(),
+          "balance",
+          balance
+        );
+      }
     }
   });
 })();

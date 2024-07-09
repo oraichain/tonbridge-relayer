@@ -3,13 +3,20 @@ import {
   Cell,
   CommonMessageInfoInternal,
   TonClient,
-  TonClient4,
   Transaction,
 } from "@ton/ton";
 import { LightClientOpcodes } from "@oraichain/ton-bridge-contracts/wrappers/LightClient";
 import { BridgeAdapterOpcodes } from "@oraichain/ton-bridge-contracts/wrappers/BridgeAdapter";
-import { JettonOpCodes } from "@oraichain/ton-bridge-contracts";
+import {
+  JettonOpCodes,
+  LightClientMasterOpcodes,
+} from "@oraichain/ton-bridge-contracts";
 import { isSuccessVmTx, retry } from "@src/utils";
+import {
+  Api,
+  HttpClient,
+  Transaction as TonApiTransaction,
+} from "tonapi-sdk-js";
 
 export abstract class Tracer {
   private readonly timeout: number;
@@ -17,6 +24,7 @@ export abstract class Tracer {
   private timer: NodeJS.Timeout;
   contract: Address;
   tonClient: TonClient;
+  tonApi: Api<HttpClient>;
   constructor(tonClient: TonClient, contract: Address, timeout: number) {
     this.tonClient = tonClient;
     this.timeout = timeout;
@@ -48,46 +56,33 @@ export abstract class Tracer {
 
   async findOutgoingTransactions(
     transaction: Transaction
-  ): Promise<Transaction[]> {
-    const outMessagesInfos = transaction.outMessages
-      .values()
-      .map((message) => message.info)
-      .filter(
-        (info): info is CommonMessageInfoInternal => info.type === "internal"
-      );
-
-    return Promise.all(
-      outMessagesInfos.map((info) =>
-        this.tonClient.tryLocateResultTx(
-          info.src,
-          info.dest,
-          info.createdLt.toString()
-        )
-      )
+  ): Promise<TonApiTransaction> {
+    const trace = await this.tonApi.traces.getTrace(
+      transaction.hash().toString("hex")
     );
+    const children = trace.children[0].transaction;
+    return children;
   }
 
   async traverseOutgoingTransactions(transaction: Transaction): Promise<void> {
     if (this.isTimeout) {
       throw new Error("Timeout");
     }
-    const outTxs = await this.findOutgoingTransactions(transaction).catch(
-      console.error
-    );
-    // const outTxs = await retry(
-    //   () => this.findOutgoingTransactions(transaction),
-    //   5,
-    //   5000
-    // );
+
+    const outTxs = await retry(
+      () => this.findOutgoingTransactions(transaction),
+      5,
+      10000
+    ).catch(console.error);
     // do smth with out txs
-    if (outTxs) {
-      for (const out of outTxs) {
-        const isContinue = this.handleOutTx(out);
-        if (isContinue) {
-          await this.traverseOutgoingTransactions(out);
-        }
-      }
-    }
+    // if (outTxs) {
+    //   for (const out of outTxs) {
+    //     const isContinue = this.handleOutTx(out);
+    //     if (isContinue) {
+    //       await this.traverseOutgoingTransactions(out);
+    //     }
+    //   }
+    // }
   }
 
   abstract handleOutTx(outTx: Transaction): boolean;
@@ -115,14 +110,21 @@ export class BridgeAdapterTracer extends Tracer {
                 inMsg?.body.hash().toString("hex") &&
               isTxSuccess
             ) {
-              return await this.traverseOutgoingTransactions(tx);
+              console.log(
+                "BridgeAdapterOpcodes.sendTx with hash",
+                tx.hash().toString("base64"),
+                "at lt",
+                tx.lt
+              );
+              return;
+              // return await this.traverseOutgoingTransactions(tx);
             }
           }
         }
         throw new Error("Not found BridgeAdapterOpcodes.sendTx");
       },
       5,
-      5000
+      10000
     );
 
     this.endTrace();
@@ -157,7 +159,7 @@ export class BridgeAdapterTracer extends Tracer {
 
   handleSendTxOps(op: number, transaction: Transaction) {
     switch (op) {
-      case LightClientOpcodes.verify_receipt: {
+      case LightClientMasterOpcodes.receive_packet: {
         // handle smt
         console.log(
           "verify_receipt with hash",
@@ -167,7 +169,7 @@ export class BridgeAdapterTracer extends Tracer {
         );
         return true;
       }
-      case BridgeAdapterOpcodes.confirmTx: {
+      case BridgeAdapterOpcodes.bridgeRecvPacket: {
         // handle smt
         console.log(
           "confirmTx with hash",
@@ -233,6 +235,12 @@ export class LightClientTracer extends Tracer {
                 inMsg?.body.hash().toString("hex") &&
               isTxSuccess
             ) {
+              console.log(
+                "LightClientOpcodes.verify_block_hash with hash",
+                tx.hash().toString("base64"),
+                "at lt",
+                tx.lt
+              );
               await this.traverseOutgoingTransactions(tx);
               return;
             }

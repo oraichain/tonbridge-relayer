@@ -1,54 +1,46 @@
 import { ConnectionOptions, Job, Worker } from "bullmq";
 import { envConfig } from "./config";
-import { beginCell, OpenedContract, Sender, toNano } from "@ton/core";
-import { printTransactionFees, SandboxContract } from "@ton/sandbox";
-import { LightClient, BridgeAdapter } from "@oraichain/ton-bridge-contracts";
+import { Cell, OpenedContract, Sender, toNano } from "@ton/core";
+import {
+  BridgeAdapter,
+  LightClientMaster,
+} from "@oraichain/ton-bridge-contracts";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 import { decodeTxRaw, Registry } from "@cosmjs/proto-signing";
 import { defaultRegistryTypes } from "@cosmjs/stargate";
 import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
 import { TxWasm } from "@oraichain/ton-bridge-contracts/wrappers/@types";
-import { getMerkleProofs } from "@oraichain/ton-bridge-contracts/wrappers/utils";
-import { BridgeData, LightClientData } from "./@types/interfaces/cosmwasm";
-import { ReadWriteStateInterface } from "./contracts/cosmwasm/mock";
+import {
+  getMerkleProofs,
+  getExistenceProofSnakeCell,
+} from "@oraichain/ton-bridge-contracts/wrappers/utils";
+import { Packet, LightClientData } from "./@types/interfaces/cosmwasm";
 import {
   deserializeCommit,
   deserializeHeader,
   deserializeValidator,
 } from "@oraichain/ton-bridge-contracts/wrappers/utils";
-import { sha256 } from "@cosmjs/crypto";
+
+import { TonClient, WalletContractV4 } from "@ton/ton";
+import { sleep, waitSeqno } from "./utils";
+import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 
 export type RelayCosmwasmData = {
-  data: string;
+  data: {
+    packetBoc: string;
+    proofs: ExistenceProof[];
+  };
   clientData: LightClientData;
-  txHash: string;
+  provenHeight: number;
 };
 
 export enum TonWorkerJob {
-  RelayCosmWasmData = "RelayCosmWasmData",
+  RelayPacket = "RelayPacket",
 }
 
 export enum CosmosWorkerJob {
   SubmitData = "SubmitData",
 }
-
-export const updateCosmosLightClient = async (
-  lightClient: SandboxContract<LightClient> | OpenedContract<LightClient>,
-  sender: Sender,
-  clientData: LightClientData
-) => {
-  const { header, lastCommit, validators } = clientData;
-  const result = await lightClient.sendVerifyBlockHash(
-    sender,
-    {
-      header: deserializeHeader(header),
-      validators: validators.map(deserializeValidator),
-      commit: deserializeCommit(lastCommit),
-    },
-    { value: toNano("3") }
-  );
-  return result;
-};
 
 export const getCosmosTxAndProofByHash = async (
   txHash: string,
@@ -90,131 +82,51 @@ export const getCosmosTxAndProofByHash = async (
   return { txWasm: decodedTxWithRawMsg, proofs, positions };
 };
 
-export const createSandBoxTonWorker = (
-  connection: ConnectionOptions,
-  sender: Sender,
-  lightClient: SandboxContract<LightClient>,
-  bridgeAdapter: SandboxContract<BridgeAdapter>
-) => {
-  const tonWorker = new Worker(
-    "ton",
-    async (job: Job<RelayCosmwasmData>) => {
-      const data = job.data;
-      switch (job.name) {
-        case TonWorkerJob.RelayCosmWasmData: {
-          const height = await lightClient.getHeight();
-          console.log("[TON-WORKER] LightClient current height", height);
-          if (height < data.clientData.header.height) {
-            console.log(
-              "[TON-WORKER] Updating block:",
-              data.clientData.header.height
-            );
-            const result = await updateCosmosLightClient(
-              lightClient,
-              sender,
-              data.clientData
-            );
-            printTransactionFees((result as any).transactions);
-            console.log(
-              "[TON-WORKER] Updating block:",
-              data.clientData.header.height,
-              "successfully"
-            );
-          }
-          const { txWasm, proofs, positions } = await getCosmosTxAndProofByHash(
-            data.txHash,
-            data.clientData.txs.map((tx) => sha256(Buffer.from(tx, "hex")))
-          );
-          console.log(
-            "[TON-WORKER] Relaying tx:",
-            data.txHash,
-            "at height:",
-            data.clientData.header.height
-          );
-          const result = await bridgeAdapter.sendTx(
-            sender,
-            {
-              height: BigInt(data.clientData.header.height),
-              tx: txWasm,
-              proofs: proofs,
-              positions: positions,
-              data: beginCell()
-                .storeBuffer(Buffer.from(data.data, "hex"))
-                .endCell(),
-            },
-            { value: toNano("2") }
-          );
-          console.log("[bridgeAdapter-sendTx]");
-          printTransactionFees((result as any).transactions);
-          break;
-        }
-        default:
-          throw new Error(`Unknown job name: ${job.name}`);
-      }
-    },
-    {
-      connection,
-      autorun: false,
-    }
-  );
-  return tonWorker;
-};
-
 export const createTonWorker = (
   connection: ConnectionOptions,
+  walletContract: OpenedContract<WalletContractV4>,
   sender: Sender,
-  lightClient: OpenedContract<LightClient>,
+  tonClient: TonClient,
+  lightClientMaster: OpenedContract<LightClientMaster>,
   bridgeAdapter: OpenedContract<BridgeAdapter>
 ) => {
   const tonWorker = new Worker(
     "ton",
     async (job: Job<RelayCosmwasmData>) => {
       const data = job.data;
-      switch (job.name) {
-        case TonWorkerJob.RelayCosmWasmData: {
-          const height = await lightClient.getHeight();
-          console.log("[TON-WORKER] LightClient current height", height);
-          if (height < data.clientData.header.height) {
-            console.log(
-              "[TON-WORKER] Updating block:",
-              data.clientData.header.height
-            );
-            await updateCosmosLightClient(lightClient, sender, data.clientData);
-            console.log(
-              "[TON-WORKER] Updating block:",
-              data.clientData.header.height,
-              "successfully"
-            );
-          }
-          const { txWasm, proofs, positions } = await getCosmosTxAndProofByHash(
-            data.txHash,
-            data.clientData.txs.map((tx) => sha256(Buffer.from(tx, "hex")))
-          );
-          console.log(
-            "[TON-WORKER] Relaying tx:",
-            data.txHash,
-            "at height:",
-            data.clientData.header.height
-          );
-          await bridgeAdapter.sendTx(
-            sender,
-            {
-              height: BigInt(data.clientData.header.height),
-              tx: txWasm,
-              proofs: proofs,
-              positions: positions,
-              data: beginCell()
-                .storeBuffer(Buffer.from(data.data, "hex"))
-                .endCell(),
-            },
-            { value: toNano("2") }
-          );
-          console.log("[bridgeAdapter-sendTx]");
-          break;
-        }
-        default:
-          throw new Error(`Unknown job name: ${job.name}`);
+      const { data: packetAndProof, provenHeight, clientData } = data;
+      const currentHeight = await lightClientMaster.getTrustedHeight();
+      if (currentHeight < provenHeight) {
+        await lightClientMaster.sendVerifyBlockHash(
+          sender,
+          {
+            header: deserializeHeader(clientData.header),
+            validators: clientData.validators.map(deserializeValidator),
+            commit: deserializeCommit(clientData.lastCommit),
+          },
+          { value: toNano("3") }
+        );
+        await waitSeqno(walletContract, await walletContract.getSeqno());
+        await sleep(30000);
       }
+
+      const { packetBoc: packet, proofs: serializeProofs } = packetAndProof;
+      const proofs = serializeProofs.map((proof) => {
+        return ExistenceProof.fromJSON(proof);
+      });
+
+      await bridgeAdapter.sendBridgeRecvPacket(
+        sender,
+        {
+          provenHeight,
+          packet: Cell.fromBoc(Buffer.from(packet, "hex"))[0],
+          proofs: getExistenceProofSnakeCell(proofs)!,
+        },
+        { value: toNano("0.8") }
+      );
+      console.log("[TON-WORKER] Relay packet successfully");
+      await waitSeqno(walletContract, await walletContract.getSeqno());
+      await sleep(30000);
     },
     {
       connection,
@@ -226,11 +138,11 @@ export const createTonWorker = (
 
 export const createCosmosWorker = (
   connection: ConnectionOptions,
-  bridgeWasm: ReadWriteStateInterface
+  bridgeWasm: any
 ) => {
   const cosmosWorker = new Worker(
     "cosmos",
-    async (job: Job<BridgeData>) => {
+    async (job: Job<Packet>) => {
       const data = job.data;
       switch (job.name) {
         case CosmosWorkerJob.SubmitData: {

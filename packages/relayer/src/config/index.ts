@@ -17,5 +17,5 @@ export const envConfig = {
   CONNECTION_STRING: process.env.CONNECTION_STRING || "relayer.duckdb",
   WASM_BRIDGE: process.env.WASM_BRIDGE || "",
   TON_BRIDGE: process.env.TON_BRIDGE || "",
-  COSMOS_LIGHT_CLIENT: process.env.COSMOS_LIGHT_CLIENT || "",
+  COSMOS_LIGHT_CLIENT_MASTER: process.env.COSMOS_LIGHT_CLIENT_MASTER || "",
 };

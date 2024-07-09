@@ -20,7 +20,7 @@ declare global {
       // CONTRACT
       WASM_BRIDGE: string;
       TON_BRIDGE: string;
-      COSMOS_LIGHT_CLIENT: string;
+      COSMOS_LIGHT_CLIENT_MASTER: string;
     }
     interface BigInt {
       toJSON(): string;

@@ -1,15 +1,15 @@
 import { Txs } from "@oraichain/cosmos-rpc-sync";
 import { BasicTxInfo } from "@src/@types/common";
+import { Cell } from "@ton/core";
 
 export interface ICosmwasmParser<T> {
-    processChunk(chunk: Txs): T;
+  processChunk(chunk: Txs): T;
 }
 
-export type BridgeData =  {
-    data:string,
+export type Packet = {
+  data: Cell;
 } & BasicTxInfo;
 
-export type BridgeParsedData = {
-    submitData: BridgeData[],
-    submittedTxs: BridgeData[]
-}
+export type Packets = {
+  packets: Packet[];
+};
