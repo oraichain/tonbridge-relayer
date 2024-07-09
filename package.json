@@ -7,7 +7,7 @@
     "clean": "lerna clean --yes && lerna exec -- rimraf build/ dist/ cache/",
     "build": "lerna run build --concurrency 1",
     "build-tsc": "tsc -p",
-    "deploy": "yarn publish --access public",
+    "deploy": "yarn lerna publish",
     "prepare": "husky install",
     "build:docker": "lerna run build --concurrency 1"
   },
