@@ -10,7 +10,10 @@ import { DuckDb } from "./services/duckdb.service";
 import { CosmosBlockOffset } from "./models/cosmwasm/block-offset";
 import { CosmosWorkerJob, RelayCosmwasmData, TonWorkerJob } from "./worker";
 import { ConnectionOptions, Queue } from "bullmq";
-import { getPacketProofs } from "@oraichain/ton-bridge-contracts";
+import {
+  getAckPacketProofs,
+  getPacketProofs,
+} from "@oraichain/ton-bridge-contracts";
 import { Tendermint37Client } from "@cosmjs/tendermint-rpc";
 import { QueryClient } from "@cosmjs/stargate";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
@@ -19,20 +22,8 @@ import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 BigInt.prototype.toJSON = function () {
   return this.toString();
 };
-const connection: ConnectionOptions = {
-  host: envConfig.REDIS_HOST,
-  port: envConfig.REDIS_PORT,
-  retryStrategy: function (times: number) {
-    return Math.max(Math.min(Math.exp(times), 20000), 1000);
-  },
-};
-const tonQueue = new Queue("ton", {
-  connection,
-});
-const cosmosQueue = new Queue("cosmos", { connection });
 
-export async function relay() {
-  console.log("[RELAY] Start relaying process");
+export async function relay(tonQueue: Queue) {
   const duckDb = await DuckDb.getInstance(envConfig.CONNECTION_STRING);
   const blockOffset = new CosmosBlockOffset(duckDb);
   await blockOffset.createTable();
@@ -70,7 +61,10 @@ export async function relay() {
   });
   // LISTEN ON THE PARSED_DATA FROM WATCHER
   cosmosWatcher.on(CosmwasmWatcherEvent.PARSED_DATA, async (data: Packets) => {
-    const { packets } = data;
+    const { transferPackets, ackPackets } = data;
+    const packets = [...transferPackets, ...ackPackets];
+    // sort packets by orders
+    packets.sort((a, b) => a.height - b.height);
     const lastPackets = packets[packets.length - 1];
     const provenHeight = lastPackets.height;
     const neededProvenHeight = provenHeight + 1;
@@ -80,8 +74,10 @@ export async function relay() {
       neededProvenHeight
     );
 
-    const promiseProofs = packets.map((packet) => {
-      const seq = packet.data.beginParse().preloadUint(64);
+    const promiseTransferProofs = transferPackets.map((packet) => {
+      const packet_cs = packet.data.beginParse(); // skip opcode_packet
+      packet_cs.loadUint(32);
+      const seq = packet_cs.loadUint(64);
       return getPacketProofs(
         queryClient as any,
         envConfig.WASM_BRIDGE,
@@ -90,14 +86,33 @@ export async function relay() {
       ) as Promise<ExistenceProof[]>;
     });
 
-    const proofs = await Promise.all(promiseProofs);
-
-    const allProofAndPacket = packets.map((packet, i) => {
-      return {
-        packetBoc: packet.data.toBoc().toString("hex"),
-        proofs: proofs[i],
-      };
+    const promiseAckProofs = ackPackets.map((packet) => {
+      const packet_cs = packet.data.beginParse(); // skip opcode_packet
+      packet_cs.loadUint(32);
+      const seq = packet_cs.loadUint(64);
+      return getAckPacketProofs(
+        queryClient as any,
+        envConfig.WASM_BRIDGE,
+        provenHeight,
+        BigInt(seq)
+      ) as Promise<ExistenceProof[]>;
     });
+
+    const [transferProofs, ackProofs] = await Promise.all([
+      Promise.all(promiseTransferProofs),
+      Promise.all(promiseAckProofs),
+    ]);
+
+    const allProofs = [...transferProofs, ...ackProofs];
+
+    const allProofAndPacket = [...transferPackets, ...ackPackets].map(
+      (packet, i) => {
+        return {
+          packetBoc: packet.data.toBoc().toString("hex"),
+          proofs: allProofs[i],
+        };
+      }
+    );
 
     const relayDataQueue = allProofAndPacket.map((proofAndPacket) => {
       return {

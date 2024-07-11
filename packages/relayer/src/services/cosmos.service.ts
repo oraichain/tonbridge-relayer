@@ -20,9 +20,11 @@ import {
   serializeHeader,
   serializeValidator,
 } from "@oraichain/ton-bridge-contracts";
+import { fromBech32 } from "@cosmjs/encoding";
 
 export const enum BRIDGE_WASM_ACTION {
-  BRIDGE_TO_TON = "bridge_to_ton",
+  SEND_TO_TON = "send_to_ton",
+  SEND_TO_COSMOS = "send_to_cosmos",
 }
 
 export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
@@ -30,7 +32,8 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
 
   processChunk(chunk: Txs): Packets {
     const { txs } = chunk;
-    const packets = [];
+    const transferPackets = [];
+    const ackPackets = [];
     const allBridgeData = txs
       .filter((tx) => tx.code === 0)
       .flatMap((tx) => {
@@ -44,13 +47,17 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
           )
         );
       })
-      .filter((data) => data.packetTransfer.length > 0);
+      .filter((data) => data.transferPackets.length > 0);
     allBridgeData.forEach((data) => {
-      packets.push(...data.packetTransfer);
+      transferPackets.push(...data.transferPackets);
+      ackPackets.push(...data.ackPackets);
     });
 
     return {
-      packets: packets.toSorted(
+      transferPackets: transferPackets.toSorted(
+        (a: BasicTxInfo, b: BasicTxInfo) => a.height - b.height
+      ),
+      ackPackets: ackPackets.toSorted(
         (a: BasicTxInfo, b: BasicTxInfo) => a.height - b.height
       ),
     };
@@ -71,47 +78,82 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
     const filterByContractAddress = (attr: Record<string, string>) =>
       attr["_contract_address"] === this.bridgeWasmAddress;
     // This action come from user need to normalize and submit by relayer.
-    const packetTransferToTon = wasmAttr
+    const sendToTonEvents = wasmAttr
       .filter(filterByContractAddress)
-      .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.BRIDGE_TO_TON);
-    // parse event to `to, denom, amount, crcSrc`
-    const packetTransfer = packetTransferToTon.map((attr) => {
+      .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.SEND_TO_TON);
+
+    const sendToCosmosEvents = wasmAttr
+      .filter(filterByContractAddress)
+      .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.SEND_TO_COSMOS);
+
+    const transferPacket = sendToTonEvents.map((attr) => {
       return {
-        data: this.transformToTransferPacket(
-          Number(attr["seq"]),
-          attr["dest_receiver"],
-          attr["dest_denom"],
+        data: this.transformEventToTransferPacket(
+          BigInt(attr["opcode_packet"]),
+          BigInt(attr["seq"]),
+          BigInt(attr["token_origin"]),
           BigInt(attr["remote_amount"]),
-          BigInt(attr["crc_src"]),
-          BigInt(attr["timeout"]),
+          BigInt(attr["timeout_timestamp"]),
+          attr["remote_receiver"],
+          attr["remote_denom"],
           attr["local_sender"]
         ),
         ...basicInfo,
       };
     });
+    const ackPackets = sendToCosmosEvents.map((attr) => {
+      return {
+        data: this.transformEventToTonAckPacket(
+          BigInt(attr["opcode_packet"]),
+          BigInt(attr["seq"]),
+          Number(attr["ack"])
+        ),
+        ...basicInfo,
+      };
+    });
     return {
-      packetTransfer: packetTransfer.length > 0 ? packetTransfer : [],
+      transferPackets: transferPacket.length > 0 ? transferPacket : [],
+      ackPackets: ackPackets.length > 0 ? ackPackets : [],
     };
   }
 
-  transformToTransferPacket(
-    seq: number,
-    to: string,
-    denom: string,
-    amount: bigint,
-    crcSrc: bigint,
-    timeout: bigint,
-    local_sender: string
+  transformEventToTonAckPacket(
+    opcode_packet: bigint,
+    seq: bigint,
+    ack: number
   ) {
     return beginCell()
+      .storeUint(opcode_packet, 32)
       .storeUint(seq, 64)
-      .storeUint(BridgeAdapterPacketOpcodes.sendToTon, 32)
-      .storeUint(crcSrc, 32)
+      .storeUint(ack, 2)
+      .endCell();
+  }
+
+  transformEventToTransferPacket(
+    opcode_packet: bigint,
+    seq: bigint,
+    token_origin: bigint,
+    amount: bigint,
+    timeout_timestamp: bigint,
+    to: string,
+    denom: string,
+    local_sender: string
+  ) {
+    const bech32Address = fromBech32(local_sender).data;
+    return beginCell()
+      .storeUint(opcode_packet, 32)
+      .storeUint(seq, 64)
+      .storeUint(token_origin, 32)
+      .storeUint(amount, 128)
+      .storeUint(timeout_timestamp, 64)
       .storeAddress(checkTonDenom(to))
       .storeAddress(checkTonDenom(denom))
-      .storeUint(amount, 128)
-      .storeUint(timeout, 64)
-      .storeRef(beginCell().storeBuffer(Buffer.from(local_sender)).endCell())
+      .storeRef(
+        beginCell()
+          .storeUint(bech32Address.length, 8)
+          .storeBuffer(Buffer.from(bech32Address))
+          .endCell()
+      )
       .endCell();
   }
 }
@@ -139,7 +181,7 @@ export class CosmwasmWatcher<T> extends EventEmitter {
     await this.syncData.start();
     this.syncData.on(CHANNEL.QUERY, async (chunk: Txs) => {
       const parsedData = this.cosmwasmParser.processChunk(chunk) as Packets;
-      if (parsedData && parsedData.packets.length > 0) {
+      if (parsedData && parsedData.transferPackets.length > 0) {
         this.emit(CosmwasmWatcherEvent.PARSED_DATA, parsedData);
       }
 

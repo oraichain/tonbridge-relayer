@@ -11,5 +11,6 @@ export type Packet = {
 } & BasicTxInfo;
 
 export type Packets = {
-  packets: Packet[];
+  transferPackets: Packet[];
+  ackPackets: Packet[];
 };
