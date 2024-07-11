@@ -7,8 +7,8 @@ import { StringHex, TransactionWithBlockId } from "../src/@types/block";
 import { LiteClient } from "ton-lite-client";
 import TonBlockProcessor from "./block-processor";
 import { setTimeout } from "timers/promises";
-import TonRocks from "@oraichain/tonbridge-utils";
-import { loadTransaction as loadTransactionTonRocks } from "@oraichain/tonbridge-utils/build/blockchain/BlockParser";
+
+import { OPCODES } from "./config";
 
 export default class TonTxProcessor {
   private limitPerTxQuery = 100; // limit per query
@@ -27,7 +27,7 @@ export default class TonTxProcessor {
   }
 
   private async queryUnprocessedTransactions() {
-    let transactions: TransactionWithBlockId[] = [];
+    const transactions: TransactionWithBlockId[] = [];
     const jettonAddr = address(this.jettonBridgeAddress);
     const masterchainInfo = await this.liteClient.getMasterchainInfo();
     const accState = await this.liteClient.getAccountState(
@@ -119,17 +119,19 @@ export default class TonTxProcessor {
     if (isTxProcessed) return;
 
     const messages = tx.tx.outMessages.values();
-    let hasExternalOutMessage = false;
+    let isValidTx = false;
     for (const message of messages) {
       if (message.info.type === "external-out") {
-        hasExternalOutMessage = true;
-        break;
+        //  load op-code
+        const opcode = message.body.beginParse().loadUint(32);
+        if (OPCODES.includes(opcode)) {
+          isValidTx = true;
+          break;
+        }
       }
     }
-    if (!hasExternalOutMessage) {
-      console.log(
-        `Transaction ${txHash} does not have an external out message. We ignore it.`
-      );
+    if (!isValidTx) {
+      console.log(`Transaction ${txHash} is invalid tx. We ignore it.`);
       return;
     }
     try {

@@ -14,7 +14,7 @@ import TonTxProcessor from "./tx-processor";
 import TonToCwRelayer from "./index";
 import dotenv from "dotenv";
 import { initSignClient } from "./client";
-import { Err } from "@oraichain/cw-simulate";
+
 dotenv.config();
 
 const CW_TON_BRIDGE = process.env.CW_TON_BRIDGE;
@@ -22,10 +22,10 @@ const CW_TON_VALDATOR = process.env.CW_TON_VALDATOR;
 const JETTON_BRIDGE = process.env.JETTON_BRIDGE;
 
 export function intToIP(int: number) {
-  var part1 = int & 255;
-  var part2 = (int >> 8) & 255;
-  var part3 = (int >> 16) & 255;
-  var part4 = (int >> 24) & 255;
+  const part1 = int & 255;
+  const part2 = (int >> 8) & 255;
+  const part3 = (int >> 16) & 255;
+  const part4 = (int >> 24) & 255;
 
   return part4 + "." + part3 + "." + part2 + "." + part1;
 }
