@@ -7,8 +7,8 @@ import { StringHex, TransactionWithBlockId } from "../src/@types/block";
 import { LiteClient } from "ton-lite-client";
 import TonBlockProcessor from "./block-processor";
 import { setTimeout } from "timers/promises";
-import TonRocks from "@oraichain/tonbridge-utils";
-import { loadTransaction as loadTransactionTonRocks } from "@oraichain/tonbridge-utils/build/blockchain/BlockParser";
+
+import { OPCODES } from "./config";
 
 export default class TonTxProcessor {
   private limitPerTxQuery = 100; // limit per query
@@ -112,25 +112,26 @@ export default class TonTxProcessor {
   }
 
   async processTransaction(tx: TransactionWithBlockId) {
-    const txHashHex = tx.tx.hash().toString("hex");
+    const txHash = tx.tx.hash().toString("hex");
     const isTxProcessed = await this.bridge.isTxProcessed({
-      txHash: txHashHex,
+      txHash: txHash,
     });
     if (isTxProcessed) return;
 
     const messages = tx.tx.outMessages.values();
-    const txHash = tx.tx.hash().toString("hex");
-    let hasExternalOutMessage = false;
+    let isValidTx = false;
     for (const message of messages) {
       if (message.info.type === "external-out") {
-        hasExternalOutMessage = true;
-        break;
+        //  load op-code
+        const opcode = message.body.beginParse().loadUint(32);
+        if (OPCODES.includes(opcode)) {
+          isValidTx = true;
+          break;
+        }
       }
     }
-    if (!hasExternalOutMessage) {
-      console.log(
-        `Transaction ${txHash} does not have an external out message. We ignore it.`
-      );
+    if (!isValidTx) {
+      console.log(`Transaction ${txHash} is invalid tx. We ignore it.`);
       return;
     }
     try {
@@ -160,7 +161,7 @@ export default class TonTxProcessor {
     });
 
     console.log(
-      `Verified tx with hash ${txHashHex} in block ${tx.blockId.seqno} successfully`
+      `Verified tx with hash ${txHash} in block ${tx.blockId.seqno} successfully`
     );
   }
 }
