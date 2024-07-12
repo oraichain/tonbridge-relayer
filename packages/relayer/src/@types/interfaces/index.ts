@@ -1,2 +1,2 @@
 export * from "./cosmwasm";
-export * from "./TON";
+export * from "./ton";

@@ -82,7 +82,7 @@ export const createTonWorker = (
           packet: Cell.fromBoc(Buffer.from(packet, "hex"))[0],
           proofs: getExistenceProofSnakeCell(proofs)!,
         },
-        { value: toNano("1") }
+        { value: toNano("0.7") }
       );
       console.log("[TON-WORKER] Relay packet successfully");
       await waitSeqno(walletContract, await walletContract.getSeqno());
