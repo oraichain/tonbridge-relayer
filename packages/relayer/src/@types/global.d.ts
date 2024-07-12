@@ -14,6 +14,7 @@ declare global {
       SYNC_INTERVAL: number;
       // TON API
       TON_CENTER: string;
+      TON_API_KEY: string;
       TON_LITE_CLIENT_LIST: string;
       // DB
       CONNECTION_STRING: string;

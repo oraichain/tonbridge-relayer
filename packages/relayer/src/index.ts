@@ -31,7 +31,9 @@ const tonQueue = new Queue("ton", {
     key,
   } = await createTonWallet(
     envConfig.TON_MNEMONIC,
-    process.env.NODE_ENV as Network
+    process.env.NODE_ENV as Network,
+    envConfig.TON_CENTER,
+    envConfig.TON_API_KEY
   );
   const lightClientMaster = LightClientMaster.createFromAddress(
     Address.parse(envConfig.COSMOS_LIGHT_CLIENT_MASTER)
@@ -42,9 +44,7 @@ const tonQueue = new Queue("ton", {
 
   const lightClientMasterContract = tonClient.open(lightClientMaster);
   const bridgeAdapterContract = tonClient.open(bridgeAdapter);
-  const cell = (await bridgeAdapterContract.getBridgeData()).readCell();
-  const result = BridgeAdapter.parseBridgeDataResponse(cell);
-  console.log(result);
+
   // Run workers
   const tonWorker = createTonWorker(
     connection,

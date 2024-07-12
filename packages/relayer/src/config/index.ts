@@ -12,6 +12,7 @@ export const envConfig = {
   SYNC_THREADS: Number(process.env.SYNC_THREADS || 4),
   SYNC_INTERVAL: Number(process.env.SYNC_INTERVAL || 5000),
   TON_CENTER: process.env.TON_CENTER || "https://toncenter.com/api/v2/jsonRPC",
+  TON_API_KEY: process.env.TON_API_KEY || "",
   TON_LITE_CLIENT_LIST:
     process.env.TON_LITE_CLIENT_LIST || "https://ton.org/global.config.json",
   CONNECTION_STRING: process.env.CONNECTION_STRING || "relayer.duckdb",
