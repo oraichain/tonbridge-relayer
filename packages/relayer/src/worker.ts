@@ -5,11 +5,6 @@ import {
   BridgeAdapter,
   LightClientMaster,
 } from "@oraichain/ton-bridge-contracts";
-import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
-import { decodeTxRaw, Registry } from "@cosmjs/proto-signing";
-import { defaultRegistryTypes } from "@cosmjs/stargate";
-import { MsgExecuteContract } from "cosmjs-types/cosmwasm/wasm/v1/tx";
-import { TxWasm } from "@oraichain/ton-bridge-contracts/wrappers/@types";
 import {
   getMerkleProofs,
   getExistenceProofSnakeCell,
@@ -42,46 +37,6 @@ export enum CosmosWorkerJob {
   SubmitData = "SubmitData",
 }
 
-export const getCosmosTxAndProofByHash = async (
-  txHash: string,
-  txs: Uint8Array[]
-) => {
-  const tendermintClient = await Tendermint34Client.connect(
-    envConfig.COSMOS_RPC_URL
-  );
-  const tx = await tendermintClient.tx({
-    hash: Buffer.from(txHash, "hex"),
-    prove: true,
-  });
-  const decodedTx = decodeTxRaw(tx.tx);
-  const registry = new Registry(defaultRegistryTypes);
-  registry.register(decodedTx.body.messages[0].typeUrl, MsgExecuteContract);
-  const rawMsg = decodedTx.body.messages.map((msg) => {
-    return {
-      typeUrl: msg.typeUrl,
-      value: registry.decode(msg) as MsgExecuteContract,
-    };
-  });
-  const decodedTxWithRawMsg: TxWasm = {
-    ...decodedTx,
-    body: {
-      messages: rawMsg,
-      memo: decodedTx.body.memo,
-      timeoutHeight: decodedTx.body.timeoutHeight,
-      extensionOptions: decodedTx.body.extensionOptions,
-      nonCriticalExtensionOptions: decodedTx.body.nonCriticalExtensionOptions,
-    },
-  };
-  const index = tx.proof.proof.index;
-  const txsBuffer = txs.map(Buffer.from);
-  const { branch: proofs, positions } = getMerkleProofs(
-    txsBuffer,
-    txsBuffer[index]
-  );
-
-  return { txWasm: decodedTxWithRawMsg, proofs, positions };
-};
-
 export const createTonWorker = (
   connection: ConnectionOptions,
   walletContract: OpenedContract<WalletContractV4>,
@@ -97,17 +52,22 @@ export const createTonWorker = (
       const { data: packetAndProof, provenHeight, clientData } = data;
       const currentHeight = await lightClientMaster.getTrustedHeight();
       if (currentHeight < provenHeight) {
-        await lightClientMaster.sendVerifyBlockHash(
-          sender,
-          {
-            header: deserializeHeader(clientData.header),
-            validators: clientData.validators.map(deserializeValidator),
-            commit: deserializeCommit(clientData.lastCommit),
-          },
-          { value: toNano("3") }
-        );
-        await waitSeqno(walletContract, await walletContract.getSeqno());
-        await sleep(30000);
+        console.log("[TON-WORKER] Update light client at", provenHeight);
+        try {
+          await lightClientMaster.sendVerifyBlockHash(
+            sender,
+            {
+              header: deserializeHeader(clientData.header),
+              validators: clientData.validators.map(deserializeValidator),
+              commit: deserializeCommit(clientData.lastCommit),
+            },
+            { value: toNano("3.5") }
+          );
+          await waitSeqno(walletContract, await walletContract.getSeqno());
+          await sleep(30000);
+        } catch (error) {
+          console.log(error);
+        }
       }
 
       const { packetBoc: packet, proofs: serializeProofs } = packetAndProof;
@@ -122,7 +82,7 @@ export const createTonWorker = (
           packet: Cell.fromBoc(Buffer.from(packet, "hex"))[0],
           proofs: getExistenceProofSnakeCell(proofs)!,
         },
-        { value: toNano("0.8") }
+        { value: toNano("1") }
       );
       console.log("[TON-WORKER] Relay packet successfully");
       await waitSeqno(walletContract, await walletContract.getSeqno());

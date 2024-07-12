@@ -42,7 +42,9 @@ const tonQueue = new Queue("ton", {
 
   const lightClientMasterContract = tonClient.open(lightClientMaster);
   const bridgeAdapterContract = tonClient.open(bridgeAdapter);
-
+  const cell = (await bridgeAdapterContract.getBridgeData()).readCell();
+  const result = BridgeAdapter.parseBridgeDataResponse(cell);
+  console.log(result);
   // Run workers
   const tonWorker = createTonWorker(
     connection,
@@ -55,5 +57,7 @@ const tonQueue = new Queue("ton", {
   tonWorker.run();
   // Start watching
   await relay(tonQueue);
-  tonWorker.on("completed", async (job) => {});
+  tonWorker.on("completed", async (job) => {
+    console.log("Job completed", job.id);
+  });
 })();

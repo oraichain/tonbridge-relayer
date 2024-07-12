@@ -1,17 +1,3 @@
-import {
-  Validator,
-  Header,
-  BlockId,
-  Commit,
-  toRfc3339WithNanoseconds,
-  fromRfc3339WithNanoseconds,
-} from "@cosmjs/tendermint-rpc";
-import {
-  SerializedValidator,
-  SerializedBlockId,
-  SerializedHeader,
-  SerializedCommit,
-} from "./@types/interfaces/cosmwasm";
 import { getHttpEndpoint, Network } from "@orbs-network/ton-access";
 import {
   WalletContractV3R2,

@@ -1,16 +1,16 @@
 import { SyncDataOptions, Txs } from "@oraichain/cosmos-rpc-sync";
-import { Packet, Packets } from "./@types/interfaces/cosmwasm";
+import { Packets } from "./@types/interfaces/cosmwasm";
 import { envConfig } from "./config";
 import {
   createCosmosBridgeWatcher,
   CosmwasmWatcherEvent,
-  createUpdateClientData as getLightClientDataAtBlock,
 } from "@src/services/cosmos.service";
 import { DuckDb } from "./services/duckdb.service";
 import { CosmosBlockOffset } from "./models/cosmwasm/block-offset";
-import { CosmosWorkerJob, RelayCosmwasmData, TonWorkerJob } from "./worker";
-import { ConnectionOptions, Queue } from "bullmq";
+import { RelayCosmwasmData, TonWorkerJob } from "./worker";
+import { Queue } from "bullmq";
 import {
+  createUpdateClientData,
   getAckPacketProofs,
   getPacketProofs,
 } from "@oraichain/ton-bridge-contracts";
@@ -68,8 +68,7 @@ export async function relay(tonQueue: Queue) {
     const lastPackets = packets[packets.length - 1];
     const provenHeight = lastPackets.height;
     const neededProvenHeight = provenHeight + 1;
-
-    const updateLightClientData = await getLightClientDataAtBlock(
+    const updateLightClientData = await createUpdateClientData(
       envConfig.COSMOS_RPC_URL,
       neededProvenHeight
     );
@@ -104,7 +103,6 @@ export async function relay(tonQueue: Queue) {
     ]);
 
     const allProofs = [...transferProofs, ...ackProofs];
-
     const allProofAndPacket = [...transferPackets, ...ackPackets].map(
       (packet, i) => {
         return {

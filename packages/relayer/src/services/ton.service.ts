@@ -93,7 +93,7 @@ export class BridgeAdapterTracer extends Tracer {
     super(tonClient, bridgeAdapter, timeout);
   }
 
-  async traceSendTx(bodySendTx: Cell) {
+  async traceBridgeRecvPacket(bodyBridgeRecvPacket: Cell) {
     this.startTrace();
     await retry(
       async () => {
@@ -105,19 +105,18 @@ export class BridgeAdapterTracer extends Tracer {
             const op = body.loadUint(32);
             const isTxSuccess = isSuccessVmTx(tx);
             if (
-              op === BridgeAdapterOpcodes.sendTx &&
-              bodySendTx.hash().toString("hex") ===
+              op === BridgeAdapterOpcodes.bridgeRecvPacket &&
+              bodyBridgeRecvPacket.hash().toString("hex") ===
                 inMsg?.body.hash().toString("hex") &&
               isTxSuccess
             ) {
               console.log(
-                "BridgeAdapterOpcodes.sendTx with hash",
-                tx.hash().toString("base64"),
+                "Successfully relay packet at",
+                tx.hash().toString("hex"),
                 "at lt",
                 tx.lt
               );
               return;
-              // return await this.traverseOutgoingTransactions(tx);
             }
           }
         }
@@ -237,7 +236,7 @@ export class LightClientTracer extends Tracer {
             ) {
               console.log(
                 "LightClientOpcodes.verify_block_hash with hash",
-                tx.hash().toString("base64"),
+                tx.hash().toString("hex"),
                 "at lt",
                 tx.lt
               );

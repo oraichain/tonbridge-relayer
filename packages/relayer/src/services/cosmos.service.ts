@@ -15,7 +15,6 @@ import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 import { LightClientData } from "@src/@types/interfaces/cosmwasm/serialized";
 import { checkTonDenom } from "@src/utils";
 import {
-  BridgeAdapterPacketOpcodes,
   serializeCommit,
   serializeHeader,
   serializeValidator,
@@ -47,7 +46,9 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
           )
         );
       })
-      .filter((data) => data.transferPackets.length > 0);
+      .filter(
+        (data) => data.transferPackets.length > 0 || data.ackPackets.length > 0
+      );
     allBridgeData.forEach((data) => {
       transferPackets.push(...data.transferPackets);
       ackPackets.push(...data.ackPackets);
@@ -180,13 +181,20 @@ export class CosmwasmWatcher<T> extends EventEmitter {
     this.running = true;
     await this.syncData.start();
     this.syncData.on(CHANNEL.QUERY, async (chunk: Txs) => {
-      const parsedData = this.cosmwasmParser.processChunk(chunk) as Packets;
-      if (parsedData && parsedData.transferPackets.length > 0) {
-        this.emit(CosmwasmWatcherEvent.PARSED_DATA, parsedData);
-      }
-
-      if (chunk) {
-        this.emit(CosmwasmWatcherEvent.SYNC_DATA, chunk);
+      try {
+        const parsedData = this.cosmwasmParser.processChunk(chunk) as Packets;
+        if (
+          parsedData &&
+          (parsedData.transferPackets.length > 0 ||
+            parsedData.ackPackets.length > 0)
+        ) {
+          this.emit(CosmwasmWatcherEvent.PARSED_DATA, parsedData);
+        }
+        if (chunk) {
+          this.emit(CosmwasmWatcherEvent.SYNC_DATA, chunk);
+        }
+      } catch (e) {
+        console.error(e);
       }
     });
   }
