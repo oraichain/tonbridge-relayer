@@ -4,21 +4,14 @@
         "baseUrl": ".",
         "outDir": "build",
         "declaration": true,
-        "rootDir": ".",
-        "paths": {
-            "@src/*": ["src/*"],
-        }
+        "rootDir": "src",
     },
+    
     "include": [
         "src/**/*.ts",
-        "tests/**/*.ts",
         "@types/**/*.ts"
     ],
     "exclude": [
         "node_modules/"
-    ],
-    "ts-node": {
-        // Do not forget to `npm i -D tsconfig-paths`
-        "require": ["tsconfig-paths/register"]
-    }
+    ]
 }

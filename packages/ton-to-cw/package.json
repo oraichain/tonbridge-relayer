@@ -7,7 +7,8 @@
     "@types"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "start": "tsx src/start.ts"
   },
   "dependencies": {
     "@cosmjs/amino": "0.31.3",
@@ -18,8 +19,8 @@
     "@cosmjs/tendermint-rpc": "0.31.3",
     "@oraichain/oraidex-common": "latest",
     "@oraichain/oraidex-contracts-sdk": "latest",
-    "@oraichain/tonbridge-contracts-build": "latest",
-    "@oraichain/tonbridge-contracts-sdk": "latest",
+    "@oraichain/tonbridge-contracts-build": "^1.2.1",
+    "@oraichain/tonbridge-contracts-sdk": "^1.2.1",
     "@oraichain/tonbridge-utils": "^1.0.0",
     "@orbs-network/ton-access": "^2.3.3",
     "@ton/core": "^0.56.3",

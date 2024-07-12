@@ -1,4 +1,3 @@
-import { exit } from "process";
 import TonBlockProcessor from "./block-processor";
 import TonTxProcessor from "./tx-processor";
 import { setTimeout } from "timers/promises";
