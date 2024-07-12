@@ -1,14 +1,10 @@
 import { ConnectionOptions, Job, Worker } from "bullmq";
-import { envConfig } from "./config";
 import { Cell, OpenedContract, Sender, toNano } from "@ton/core";
 import {
   BridgeAdapter,
   LightClientMaster,
 } from "@oraichain/ton-bridge-contracts";
-import {
-  getMerkleProofs,
-  getExistenceProofSnakeCell,
-} from "@oraichain/ton-bridge-contracts/wrappers/utils";
+import { getExistenceProofSnakeCell } from "@oraichain/ton-bridge-contracts/wrappers/utils";
 import { Packet, LightClientData } from "./@types/interfaces/cosmwasm";
 import {
   deserializeCommit,
