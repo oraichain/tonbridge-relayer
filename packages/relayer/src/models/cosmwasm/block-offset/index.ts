@@ -1,4 +1,4 @@
-import { DuckDb } from "@src/services/duckdb.service";
+import { DuckDb } from "@src/duckdb.service";
 
 export class CosmosBlockOffset {
   private DuckDb: DuckDb;

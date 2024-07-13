@@ -1,7 +1,7 @@
 {
   "name": "@oraichain/tonbridge-relayer-to-cw",
   "version": "1.0.8",
-  "main": "build/index.js",
+  "main": "dist/index.js",
   "files": [
     "build/",
     "@types"
