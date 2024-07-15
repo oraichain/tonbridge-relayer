@@ -1,0 +1,41 @@
+{
+  "name": "@oraichain/tonbridge-relayer-to-ton",
+  "version": "1.0.8",
+  "main": "dist/index.js",
+  "files": [
+    "build/",
+    "@types"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@cosmjs/cosmwasm-stargate": "^0.31.3",
+    "@cosmjs/crypto": "^0.31.3",
+    "@cosmjs/encoding": "^0.32.3",
+    "@cosmjs/proto-signing": "^0.31.3",
+    "@cosmjs/stargate": "^0.31.3",
+    "@oraichain/cosmos-rpc-sync": "next",
+    "@oraichain/oraidex-common": "^1.0.88-beta.1",
+    "@oraichain/ton-bridge-contracts": "^0.15.8",
+    "@oraichain/tonbridge-contracts-sdk": "^1.2.1",
+    "@orbs-network/ton-access": "^2.3.3",
+    "@ton/core": "^0.56.3",
+    "@ton/crypto": "^3.2.0",
+    "@ton/ton": "^13.11.2",
+    "bullmq": "^5.7.15",
+    "cosmjs-types": "^0.9.0",
+    "dotenv": "^16.4.5",
+    "duckdb": "^1.0.0",
+    "duckdb-async": "^1.0.0",
+    "tonapi-sdk-js": "^1.0.13"
+  },
+  "devDependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
+    "@ton/sandbox": "^0.20.0",
+    "tsc-alias": "^1.8.10",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "5.4.5"
+  }
+}

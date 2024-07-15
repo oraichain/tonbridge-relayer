@@ -1,0 +1,17 @@
+**/node_modules/
+**/dist
+.git
+npm-debug.log
+.coverage
+.coverage.*
+.aws
+.husky
+**/target
+**/pkg
+**/tests
+*.md
+# env variables
+.env
+.env**
+# config
+config*.{yaml,yml}

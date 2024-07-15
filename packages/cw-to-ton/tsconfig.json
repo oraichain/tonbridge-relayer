@@ -1,0 +1,24 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "baseUrl": ".",
+        "outDir": "build",
+        "declaration": true,
+        "rootDir": ".",
+        "paths": {
+            "@src/*": ["src/*"],
+        }
+    },
+    "include": [
+        "src/**/*.ts",
+        "tests/**/*.ts",
+        "@types/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules/"
+    ],
+    "ts-node": {
+        // Do not forget to `npm i -D tsconfig-paths`
+        "require": ["tsconfig-paths/register"]
+    }
+}

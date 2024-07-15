@@ -8,7 +8,7 @@ import { LiteClient } from "ton-lite-client";
 import TonBlockProcessor from "./block-processor";
 import { setTimeout } from "timers/promises";
 
-import { OPCODES } from "./config";
+import { OPCODES } from "./constants";
 
 export default class TonTxProcessor {
   private limitPerTxQuery = 100; // limit per query
