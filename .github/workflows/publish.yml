@@ -8,8 +8,8 @@ on:
 
   push:
     tags:
-      - 'v*'
-      - 'v*-beta'
+      - "v*"
+      - "v*-beta"
 
 env:
   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -18,8 +18,8 @@ jobs:
   docker-amd:
     strategy:
       matrix:
-        node: ['18.18.0']
-    runs-on: orai-swarm
+        node: ["18.18.0"]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,9 +63,8 @@ jobs:
           cache-to: type=registry,ref=oraichain/defi_ton-bridge-relayer:buildcache,mode=max
           platforms: linux/amd64
 
-
   swarm:
-    runs-on: orai-swarm
+    runs-on: ubuntu-latest
     needs: docker-amd
     steps:
       - name: Extract SHA
@@ -115,5 +114,5 @@ jobs:
         with:
           webhook_id: ${{ secrets.WEBHOOK_ID }}
           webhook_token: ${{ secrets.WEBHOOK_TOKEN }}
-          username: 'GitBot'
-          message: '[${{ steps.set_environment.outputs.deploy_environment }}] Repo futures-info has just deployed to swarm with tag: ${{ steps.extract_sha.outputs.short_sha }}'
+          username: "GitBot"
+          message: "[${{ steps.set_environment.outputs.deploy_environment }}] Repo futures-info has just deployed to swarm with tag: ${{ steps.extract_sha.outputs.short_sha }}"
