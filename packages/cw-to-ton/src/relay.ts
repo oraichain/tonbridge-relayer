@@ -1,6 +1,6 @@
 import { SyncDataOptions, Txs } from "@oraichain/cosmos-rpc-sync";
 import { Packets } from "./@types/interfaces/cosmwasm";
-import { envConfig } from "./config";
+import { Config } from "./config";
 import {
   createCosmosBridgeWatcher,
   CosmwasmWatcherEvent,
@@ -23,34 +23,32 @@ BigInt.prototype.toJSON = function () {
   return this.toString();
 };
 
-export async function relay(tonQueue: Queue) {
-  const duckDb = await DuckDb.getInstance(envConfig.CONNECTION_STRING);
+export async function relay(tonQueue: Queue, tonConfig: Config) {
+  const duckDb = await DuckDb.getInstance(tonConfig.connectionString);
   const blockOffset = new CosmosBlockOffset(duckDb);
   await blockOffset.createTable();
   const offset = await blockOffset.mayLoadBlockOffset(
-    envConfig.SYNC_BLOCK_OFFSET
+    tonConfig.syncBlockOffSet
   );
   const syncDataOpt: SyncDataOptions = {
-    rpcUrl: envConfig.COSMOS_RPC_URL,
-    limit: envConfig.SYNC_LIMIT,
-    maxThreadLevel: envConfig.SYNC_THREADS,
+    rpcUrl: tonConfig.cosmosRpcUrl,
+    limit: tonConfig.syncLimit,
+    maxThreadLevel: tonConfig.syncThreads,
     offset: offset,
-    interval: envConfig.SYNC_INTERVAL,
+    interval: tonConfig.syncInterval,
     queryTags: [],
   };
-  if (offset < envConfig.SYNC_BLOCK_OFFSET) {
-    syncDataOpt.offset = envConfig.SYNC_BLOCK_OFFSET;
+  if (offset < tonConfig.syncBlockOffSet) {
+    syncDataOpt.offset = tonConfig.syncBlockOffSet;
   }
-  if (envConfig.WASM_BRIDGE === "") {
+  if (tonConfig.wasmBridge === "") {
     throw new Error("WASM_BRIDGE is required");
   }
-  const tendermint37 = await Tendermint37Client.connect(
-    envConfig.COSMOS_RPC_URL
-  );
+  const tendermint37 = await Tendermint37Client.connect(tonConfig.cosmosRpcUrl);
   const queryClient = new QueryClient(tendermint37 as any);
 
   const cosmosWatcher = createCosmosBridgeWatcher(
-    envConfig.WASM_BRIDGE,
+    tonConfig.wasmBridge,
     syncDataOpt
   );
   // UPDATE BLOCK OFFSET TO DATABASE
@@ -69,7 +67,7 @@ export async function relay(tonQueue: Queue) {
     const provenHeight = lastPackets.height;
     const neededProvenHeight = provenHeight + 1;
     const updateLightClientData = await createUpdateClientData(
-      envConfig.COSMOS_RPC_URL,
+      tonConfig.cosmosRpcUrl,
       neededProvenHeight
     );
 
@@ -79,7 +77,7 @@ export async function relay(tonQueue: Queue) {
       const seq = packet_cs.loadUint(64);
       return getPacketProofs(
         queryClient as any,
-        envConfig.WASM_BRIDGE,
+        tonConfig.wasmBridge,
         provenHeight,
         BigInt(seq)
       ) as Promise<ExistenceProof[]>;
@@ -91,7 +89,7 @@ export async function relay(tonQueue: Queue) {
       const seq = packet_cs.loadUint(64);
       return getAckPacketProofs(
         queryClient as any,
-        envConfig.WASM_BRIDGE,
+        tonConfig.wasmBridge,
         provenHeight,
         BigInt(seq)
       ) as Promise<ExistenceProof[]>;

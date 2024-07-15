@@ -1,15 +1,13 @@
 import { ConnectionOptions, Job, Worker } from "bullmq";
 import { Cell, OpenedContract, Sender, toNano } from "@ton/core";
+import { LightClientData } from "./@types/interfaces/cosmwasm";
 import {
   BridgeAdapter,
   LightClientMaster,
-} from "@oraichain/ton-bridge-contracts";
-import { getExistenceProofSnakeCell } from "@oraichain/ton-bridge-contracts";
-import { LightClientData } from "./@types/interfaces/cosmwasm";
-import {
   deserializeCommit,
   deserializeHeader,
   deserializeValidator,
+  getExistenceProofSnakeCell,
 } from "@oraichain/ton-bridge-contracts";
 
 import { TonClient, WalletContractV4 } from "@ton/ton";
@@ -33,7 +31,7 @@ export const createTonWorker = (
   connection: ConnectionOptions,
   walletContract: OpenedContract<WalletContractV4>,
   sender: Sender,
-  tonClient: TonClient,
+  tonClient: TonClient, // TODO: Using when implement trace transaction
   lightClientMaster: OpenedContract<LightClientMaster>,
   bridgeAdapter: OpenedContract<BridgeAdapter>
 ) => {
@@ -72,7 +70,7 @@ export const createTonWorker = (
         {
           provenHeight,
           packet: Cell.fromBoc(Buffer.from(packet, "hex"))[0],
-          proofs: getExistenceProofSnakeCell(proofs)!,
+          proofs: getExistenceProofSnakeCell(proofs),
         },
         { value: toNano("0.7") }
       );

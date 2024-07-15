@@ -8,11 +8,10 @@ import {
 import {
   LightClientOpcodes,
   BridgeAdapterOpcodes,
-} from "@oraichain/ton-bridge-contracts";
-import {
   JettonOpCodes,
   LightClientMasterOpcodes,
 } from "@oraichain/ton-bridge-contracts";
+
 import { isSuccessVmTx, retry } from "@src/utils";
 import {
   Api,

@@ -1,4 +1,4 @@
-import { BlockId, BlockIdFlag, Version } from "@cosmjs/tendermint-rpc";
+import { BlockIdFlag, Version } from "@cosmjs/tendermint-rpc";
 
 export type SerializedBlockId = {
   hash: string;

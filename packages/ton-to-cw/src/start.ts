@@ -38,7 +38,7 @@ function validate() {
 
 (async () => {
   validate();
-  const client = await initSignClient();
+  const client = await initSignClient(process.env.MNEMONIC);
   // setup lite engine server
   const { liteservers } = await fetch(
     "https://ton.org/global.config.json"
