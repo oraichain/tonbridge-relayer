@@ -14,6 +14,7 @@ const connection: ConnectionOptions = {
     return Math.max(Math.min(Math.exp(times), 20000), 1000);
   },
 };
+console.log({ config });
 const tonQueue = new Queue("ton", { connection });
 
 (async () => {
