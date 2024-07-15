@@ -14,21 +14,13 @@ import TonTxProcessor from "./tx-processor";
 import TonToCwRelayer from "./index";
 import dotenv from "dotenv";
 import { initSignClient } from "./client";
+import { intToIP } from "./constants";
 
 dotenv.config();
 
 const CW_TON_BRIDGE = process.env.CW_TON_BRIDGE;
 const CW_TON_VALDATOR = process.env.CW_TON_VALDATOR;
 const JETTON_BRIDGE = process.env.JETTON_BRIDGE;
-
-export function intToIP(int: number) {
-  const part1 = int & 255;
-  const part2 = (int >> 8) & 255;
-  const part3 = (int >> 16) & 255;
-  const part4 = (int >> 24) & 255;
-
-  return part4 + "." + part3 + "." + part2 + "." + part1;
-}
 
 function validate() {
   if (!CW_TON_BRIDGE || !CW_TON_VALDATOR || !JETTON_BRIDGE) {

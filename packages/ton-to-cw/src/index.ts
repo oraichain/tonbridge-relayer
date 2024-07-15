@@ -9,7 +9,7 @@ import { initSignClient } from "./client";
 import { Config } from "./config";
 import TonTxProcessor from "./tx-processor";
 import { setTimeout } from "timers/promises";
-import { intToIP } from "./start";
+import { intToIP } from "./constants";
 import TonWeb from "tonweb";
 import {
   TonbridgeBridgeClient,

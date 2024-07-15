@@ -7,21 +7,29 @@ import {
   OpenedContract,
   Transaction,
   Address,
+  Cell,
 } from "@ton/ton";
 import { mnemonicToWalletKey } from "@ton/crypto";
 import { NULL_TON_ADDRESS } from "./constants";
+import { BridgeAdapterPacketOpcodes } from "@oraichain/ton-bridge-contracts";
 
 export async function waitSeqno(
   walletContract:
     | OpenedContract<WalletContractV3R2>
     | OpenedContract<WalletContractV4>,
-  seqno: number
+  seqno: number,
+  attempts = 10
 ) {
+  let attempt = 0;
   let currentSeqno = seqno;
   while (currentSeqno == seqno) {
+    if (attempt > attempts) {
+      throw new Error("transaction timeout");
+    }
     console.log("waiting for transaction to confirm...");
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     currentSeqno = await walletContract.getSeqno();
+    attempt++;
   }
   console.log("transaction confirmed!");
 }
@@ -112,4 +120,17 @@ export function checkTonDenom(address: string) {
     return null;
   }
   return Address.parse(address);
+}
+
+export function getJobIdFromPacket(packet: string) {
+  const cs = Cell.fromBoc(Buffer.from(packet, "hex"))[0].beginParse();
+  const op = cs.loadUint(32);
+  const seq = cs.loadUint(64);
+  return getJobIdFromOpcodePacket(op, BigInt(seq));
+}
+
+export function getJobIdFromOpcodePacket(opcodePacket: number, seq: bigint) {
+  return opcodePacket == BridgeAdapterPacketOpcodes.sendToTon
+    ? `sendToTon-${seq}`
+    : `ackSendToCosmos-${seq}`;
 }

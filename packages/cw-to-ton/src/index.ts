@@ -20,6 +20,15 @@ export async function createCwToTonRelayerWithConfig(config: Config) {
   };
   const tonQueue = new Queue("ton", {
     connection,
+    defaultJobOptions: {
+      removeOnComplete: {
+        age: 1000 * 60 * 60 * 24 * 14, // 14 days
+        count: 1000,
+      },
+      removeOnFail: {
+        count: 5000,
+      },
+    },
   });
   const {
     walletContract,
@@ -51,6 +60,9 @@ export async function createCwToTonRelayerWithConfig(config: Config) {
   tonWorker.run();
   tonWorker.on("completed", async (job) => {
     console.log("Job completed", job.id);
+  });
+  tonWorker.on("error", (error) => {
+    console.log("Error:", error);
   });
   return await relay(tonQueue, config);
 }

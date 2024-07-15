@@ -1,11 +1,20 @@
 import express, { Request, Response } from "express";
 import dotenv from "dotenv";
-import { exit } from "process";
 import { createTonToCwRelayerWithConfig } from "@oraichain/tonbridge-relayer-to-cw";
-import { loadConfig } from "./config";
 import { createCwToTonRelayerWithConfig } from "@oraichain/tonbridge-relayer-to-ton";
+
+import { loadConfig } from "./config";
+import { ConnectionOptions, Queue } from "bullmq";
 dotenv.config();
 const config = loadConfig();
+const connection: ConnectionOptions = {
+  host: config.tonToCw.redisHost,
+  port: config.tonToCw.redisPort,
+  retryStrategy: function (times: number) {
+    return Math.max(Math.min(Math.exp(times), 20000), 1000);
+  },
+};
+const tonQueue = new Queue("ton", { connection });
 
 (async () => {
   try {
@@ -18,28 +27,32 @@ const config = loadConfig();
       res.send("Pong from ton-to-cw relayer");
     });
 
-    app.listen(port, "0.0.0.0", () => {
+    app.listen(port, "0.0.0.0", async () => {
       console.log(`Server is running at http://0.0.0.0:${port}`);
+      const [tonToCwRelayer, cwToTonRelayer] = await Promise.all([
+        createTonToCwRelayerWithConfig(config.tonToCw),
+        createCwToTonRelayerWithConfig(config.cwToTon),
+      ]);
+      tonToCwRelayer.relay();
+      cwToTonRelayer.start();
     });
-
-    const [tonToCwRelayer, cwToTonRelayer] = await Promise.all([
-      createTonToCwRelayerWithConfig(config.tonToCw),
-      createCwToTonRelayerWithConfig(config.cwToTon),
-    ]);
-    cwToTonRelayer.start();
-    tonToCwRelayer.relay();
   } catch (error) {
     console.error("error is: ", error);
-    exit(1);
+    process.exit(1);
   }
+
+  process.on("unhandledRejection", (reason) => {
+    console.log(reason);
+    process.exit(1);
+  });
+
+  process.on("SIGINT", () => {
+    console.log("SIGINT received");
+    process.exit(0);
+  });
+
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM received");
+    process.exit(0);
+  });
 })();
-
-process.on("unhandledRejection", (reason) => {
-  console.log(reason);
-  process.exit(1);
-});
-
-process.on("SIGKILL", () => {
-  console.log("SIGKILL received");
-  process.exit(0);
-});

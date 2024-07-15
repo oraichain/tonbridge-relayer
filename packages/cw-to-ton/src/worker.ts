@@ -61,9 +61,9 @@ export const createTonWorker = (
             5000
           );
           await waitSeqno(walletContract, await walletContract.getSeqno());
-          await sleep(30000);
+          await sleep(30000); // TODO: Alter by tracing transaction to get the result
         } catch (error) {
-          console.log(error);
+          throw new Error(`[TON-WORKER] Update light client failed: ${error}`);
         }
       }
       const { packetBoc: packet, proofs: serializeProofs } = packetAndProof;
@@ -87,7 +87,6 @@ export const createTonWorker = (
       );
       console.log("[TON-WORKER] Relay packet successfully");
       await waitSeqno(walletContract, await walletContract.getSeqno());
-      await sleep(30000);
     },
     {
       connection,

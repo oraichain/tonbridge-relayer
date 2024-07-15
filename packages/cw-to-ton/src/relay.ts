@@ -8,7 +8,7 @@ import {
 import { DuckDb } from "./services/duckdb.service";
 import { CosmosBlockOffset } from "./models/cosmwasm/block-offset";
 import { RelayCosmwasmData, TonWorkerJob } from "./worker";
-import { Queue } from "bullmq";
+import { BulkJobOptions, Queue } from "bullmq";
 import {
   createUpdateClientData,
   getAckPacketProofs,
@@ -17,6 +17,7 @@ import {
 import { Tendermint37Client } from "@cosmjs/tendermint-rpc";
 import { QueryClient } from "@cosmjs/stargate";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
+import { getJobIdFromPacket } from "./utils";
 
 //@ts-ignore
 BigInt.prototype.toJSON = function () {
@@ -110,7 +111,11 @@ export async function relay(tonQueue: Queue, tonConfig: Config) {
       }
     );
 
-    const relayDataQueue = allProofAndPacket.map((proofAndPacket) => {
+    const relayDataQueue: {
+      name: string;
+      data: any;
+      opts?: BulkJobOptions;
+    }[] = allProofAndPacket.map((proofAndPacket) => {
       return {
         name: TonWorkerJob.RelayPacket,
         data: {
@@ -118,6 +123,9 @@ export async function relay(tonQueue: Queue, tonConfig: Config) {
           clientData: updateLightClientData,
           provenHeight: neededProvenHeight,
         } as RelayCosmwasmData,
+        opts: {
+          jobId: getJobIdFromPacket(proofAndPacket.packetBoc),
+        },
       };
     });
 
