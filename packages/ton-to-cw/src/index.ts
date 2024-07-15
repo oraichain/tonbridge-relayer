@@ -81,7 +81,9 @@ export async function createTonToCwRelayerWithConfig(config: Config) {
   const liteClient = new LiteClient({ engine: liteEngine });
 
   // should host a private ton http api in production: https://github.com/toncenter/ton-http-api
-  const tonWeb = new TonWeb(new TonWeb.HttpProvider(config.tonHttpApiURL));
+  const tonWeb = new TonWeb(
+    new TonWeb.HttpProvider(config.tonHttpApiURL, { apiKey: config.tonApiKey })
+  );
 
   const validator = new TonbridgeValidatorClient(
     client.client,
@@ -110,4 +112,4 @@ export async function createTonToCwRelayerWithConfig(config: Config) {
   return relayer;
 }
 
-export { Config } from "./config";
+export type { Config } from "./config";

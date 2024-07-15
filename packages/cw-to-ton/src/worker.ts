@@ -11,7 +11,7 @@ import {
 } from "@oraichain/ton-bridge-contracts";
 
 import { TonClient, WalletContractV4 } from "@ton/ton";
-import { sleep, waitSeqno } from "./utils";
+import { retry, sleep, waitSeqno } from "./utils";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 
 export type RelayCosmwasmData = {
@@ -44,14 +44,21 @@ export const createTonWorker = (
       if (currentHeight < provenHeight) {
         console.log("[TON-WORKER] Update light client at", provenHeight);
         try {
-          await lightClientMaster.sendVerifyBlockHash(
-            sender,
-            {
-              header: deserializeHeader(clientData.header),
-              validators: clientData.validators.map(deserializeValidator),
-              commit: deserializeCommit(clientData.lastCommit),
+          // retry 3 times with 5s delay
+          retry(
+            async () => {
+              await lightClientMaster.sendVerifyBlockHash(
+                sender,
+                {
+                  header: deserializeHeader(clientData.header),
+                  validators: clientData.validators.map(deserializeValidator),
+                  commit: deserializeCommit(clientData.lastCommit),
+                },
+                { value: toNano("3.5") }
+              );
             },
-            { value: toNano("3.5") }
+            3,
+            5000
           );
           await waitSeqno(walletContract, await walletContract.getSeqno());
           await sleep(30000);
@@ -59,20 +66,24 @@ export const createTonWorker = (
           console.log(error);
         }
       }
-
       const { packetBoc: packet, proofs: serializeProofs } = packetAndProof;
       const proofs = serializeProofs.map((proof) => {
         return ExistenceProof.fromJSON(proof);
       });
-
-      await bridgeAdapter.sendBridgeRecvPacket(
-        sender,
-        {
-          provenHeight,
-          packet: Cell.fromBoc(Buffer.from(packet, "hex"))[0],
-          proofs: getExistenceProofSnakeCell(proofs),
+      retry(
+        async () => {
+          await bridgeAdapter.sendBridgeRecvPacket(
+            sender,
+            {
+              provenHeight,
+              packet: Cell.fromBoc(Buffer.from(packet, "hex"))[0],
+              proofs: getExistenceProofSnakeCell(proofs),
+            },
+            { value: toNano("0.7") }
+          );
         },
-        { value: toNano("0.7") }
+        3,
+        5000
       );
       console.log("[TON-WORKER] Relay packet successfully");
       await waitSeqno(walletContract, await walletContract.getSeqno());

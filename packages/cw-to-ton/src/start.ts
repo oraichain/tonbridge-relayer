@@ -56,7 +56,8 @@ const tonQueue = new Queue("ton", {
   );
   tonWorker.run();
   // Start watching
-  await relay(tonQueue, TonDefaultConfig);
+  const cosmosWatcher = await relay(tonQueue, TonDefaultConfig);
+  await cosmosWatcher.start();
   tonWorker.on("completed", async (job) => {
     console.log("Job completed", job.id);
   });

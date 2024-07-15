@@ -124,6 +124,5 @@ export async function relay(tonQueue: Queue, tonConfig: Config) {
     await tonQueue.addBulk(relayDataQueue);
   });
 
-  console.log("[RELAY] Start watching cosmos chain");
-  await cosmosWatcher.start();
+  return cosmosWatcher;
 }

@@ -3,6 +3,7 @@ export type Config = {
   cwTonValidators: string;
   jettonBridge: string;
   tonHttpApiURL: string;
+  tonApiKey: string;
   mnemonic: string;
 };
 
@@ -12,6 +13,7 @@ export function loadConfig(): Config {
     cwTonValidators: process.env.CW_TON_VALDATOR,
     jettonBridge: process.env.JETTON_BRIDGE,
     tonHttpApiURL: process.env.TON_HTTP_API_URL,
+    tonApiKey: process.env.TON_API_KEY,
     mnemonic: process.env.MNEMONIC,
   };
 }
