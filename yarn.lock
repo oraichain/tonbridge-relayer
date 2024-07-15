@@ -3132,9 +3132,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oraichain/ton-bridge-contracts@npm:^0.15.3":
-  version: 0.15.6
-  resolution: "@oraichain/ton-bridge-contracts@npm:0.15.6"
+"@oraichain/ton-bridge-contracts@npm:^0.15.8":
+  version: 0.15.8
+  resolution: "@oraichain/ton-bridge-contracts@npm:0.15.8"
   dependencies:
     "@cosmjs/tendermint-rpc": "npm:^0.32.4"
     "@orbs-network/ton-access": "npm:^2.3.3"
@@ -3142,7 +3142,7 @@ __metadata:
     cosmjs-types: "npm:^0.9.0"
     dotenv: "npm:^16.4.5"
     varstruct: "npm:^6.1.3"
-  checksum: 10c0/4001dc9330397f8ed5215100921b421a81772926ec4ce4d41dea3c5101fb3969d85380fad21962ad8eb36540dc8a6513ade6f00ae74b106784797f17112dc5e0
+  checksum: 10c0/e46142dd72764a29adeecbca704f00068decf2e35956daea7d5c8f425213cf7e8019e40c121d8c90387fe21cbdb15a6754a02807a4507b4c15632e4aff07ea6a
   languageName: node
   linkType: hard
 
@@ -3209,7 +3209,7 @@ __metadata:
     "@cosmjs/stargate": "npm:^0.31.3"
     "@oraichain/cosmos-rpc-sync": "npm:next"
     "@oraichain/oraidex-common": "npm:^1.0.88-beta.1"
-    "@oraichain/ton-bridge-contracts": "npm:^0.15.3"
+    "@oraichain/ton-bridge-contracts": "npm:^0.15.8"
     "@oraichain/tonbridge-contracts-sdk": "npm:^1.0.1"
     "@orbs-network/ton-access": "npm:^2.3.3"
     "@ton/core": "npm:^0.56.3"

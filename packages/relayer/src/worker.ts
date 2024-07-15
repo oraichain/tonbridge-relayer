@@ -4,13 +4,13 @@ import {
   BridgeAdapter,
   LightClientMaster,
 } from "@oraichain/ton-bridge-contracts";
-import { getExistenceProofSnakeCell } from "@oraichain/ton-bridge-contracts/wrappers/utils";
-import { Packet, LightClientData } from "./@types/interfaces/cosmwasm";
+import { getExistenceProofSnakeCell } from "@oraichain/ton-bridge-contracts";
+import { LightClientData } from "./@types/interfaces/cosmwasm";
 import {
   deserializeCommit,
   deserializeHeader,
   deserializeValidator,
-} from "@oraichain/ton-bridge-contracts/wrappers/utils";
+} from "@oraichain/ton-bridge-contracts";
 
 import { TonClient, WalletContractV4 } from "@ton/ton";
 import { sleep, waitSeqno } from "./utils";
@@ -27,10 +27,6 @@ export type RelayCosmwasmData = {
 
 export enum TonWorkerJob {
   RelayPacket = "RelayPacket",
-}
-
-export enum CosmosWorkerJob {
-  SubmitData = "SubmitData",
 }
 
 export const createTonWorker = (
@@ -90,34 +86,4 @@ export const createTonWorker = (
     }
   );
   return tonWorker;
-};
-
-export const createCosmosWorker = (
-  connection: ConnectionOptions,
-  bridgeWasm: any
-) => {
-  const cosmosWorker = new Worker(
-    "cosmos",
-    async (job: Job<Packet>) => {
-      const data = job.data;
-      switch (job.name) {
-        case CosmosWorkerJob.SubmitData: {
-          console.log("[COSMOS-WORKER] Submitting data to cosmos bridge");
-          const result = await bridgeWasm.submitBridgeToTonInfo(data);
-          console.log(
-            "[COSMOS-WORKER] Submit successfully at",
-            result.transactionHash
-          );
-          break;
-        }
-        default:
-          throw new Error(`Unknown job name: ${job.name}`);
-      }
-    },
-    {
-      connection,
-      autorun: false,
-    }
-  );
-  return cosmosWorker;
 };
