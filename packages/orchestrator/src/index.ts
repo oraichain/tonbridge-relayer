@@ -19,7 +19,6 @@ dotenv.config();
       console.log(`Server is running at http://0.0.0.0:${port}`);
     });
 
-    // FIXME: add block & tx processor initiator here. Also add relayer from cw-to-ton as well
     const tonToCwRelayer = new TonToCwRelayer();
     tonToCwRelayer.relay();
   } catch (error) {

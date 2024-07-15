@@ -1,17 +1,7 @@
-import { Config as TonConfig } from "@oraichain/tonbridge-relayer-to-ton";
-export type Config = {};
+import { Config as CwToTonConfig } from "@oraichain/tonbridge-relayer-to-ton";
+import { Config as TonToCwConfig } from "@oraichain/tonbridge-relayer-to-cw";
 
-export type TonConfig = {
-  tonCenterUrl: string;
-  tonCenterApiKey: string;
-};
-
-export type CosmosConfig = {
-  rpcUrl: string;
-  prefix: string;
-  denom: string;
-  gasFee: string;
-  mnemonic: string;
-  ton_bridge: string;
-  ton_validator: string;
+export type Config = {
+  cwToTon: CwToTonConfig;
+  tonToCw: TonToCwConfig;
 };
