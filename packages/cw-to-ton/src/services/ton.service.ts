@@ -5,8 +5,10 @@ import {
   TonClient,
   Transaction,
 } from "@ton/ton";
-import { LightClientOpcodes } from "@oraichain/ton-bridge-contracts/wrappers/LightClient";
-import { BridgeAdapterOpcodes } from "@oraichain/ton-bridge-contracts/wrappers/BridgeAdapter";
+import {
+  LightClientOpcodes,
+  BridgeAdapterOpcodes,
+} from "@oraichain/ton-bridge-contracts";
 import {
   JettonOpCodes,
   LightClientMasterOpcodes,

@@ -3165,6 +3165,7 @@ __metadata:
   resolution: "@oraichain/tonbridge-orchestrator@workspace:packages/orchestrator"
   dependencies:
     "@oraichain/tonbridge-relayer-to-cw": "workspace:^"
+    "@oraichain/tonbridge-relayer-to-ton": "workspace:^"
     "@types/express": "npm:^4"
     dotenv: "npm:^16.4.5"
     express: "npm:^4.19.2"
@@ -3197,9 +3198,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@oraichain/tonbridge-relayer@workspace:packages/relayer":
+"@oraichain/tonbridge-relayer-to-ton@workspace:^, @oraichain/tonbridge-relayer-to-ton@workspace:packages/cw-to-ton":
   version: 0.0.0-use.local
-  resolution: "@oraichain/tonbridge-relayer@workspace:packages/relayer"
+  resolution: "@oraichain/tonbridge-relayer-to-ton@workspace:packages/cw-to-ton"
   dependencies:
     "@aws-crypto/sha256-js": "npm:^5.2.0"
     "@cosmjs/cosmwasm-stargate": "npm:^0.31.3"
