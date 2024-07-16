@@ -17,7 +17,7 @@ import {
 import { Tendermint37Client } from "@cosmjs/tendermint-rpc";
 import { QueryClient } from "@cosmjs/stargate";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
-import { getJobIdFromPacket } from "./utils";
+import { getJobIdFromPacket, retry } from "./utils";
 
 //@ts-ignore
 BigInt.prototype.toJSON = function () {
@@ -67,9 +67,16 @@ export async function relay(tonQueue: Queue, tonConfig: Config) {
     const lastPackets = packets[packets.length - 1];
     const provenHeight = lastPackets.height;
     const neededProvenHeight = provenHeight + 1;
-    const updateLightClientData = await createUpdateClientData(
-      tonConfig.cosmosRpcUrl,
-      neededProvenHeight
+    // Sometimes needProvenBlock have not been end yet.
+    const updateLightClientData = await retry(
+      () => {
+        return createUpdateClientData(
+          tonConfig.cosmosRpcUrl,
+          neededProvenHeight
+        );
+      },
+      2,
+      2000
     );
 
     const promiseTransferProofs = transferPackets.map((packet) => {

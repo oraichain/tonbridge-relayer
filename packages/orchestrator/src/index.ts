@@ -4,17 +4,10 @@ import { createTonToCwRelayerWithConfig } from "@oraichain/tonbridge-relayer-to-
 import { createCwToTonRelayerWithConfig } from "@oraichain/tonbridge-relayer-to-ton";
 
 import { loadConfig } from "./config";
-import { ConnectionOptions, Queue } from "bullmq";
 dotenv.config();
 const config = loadConfig();
-const connection: ConnectionOptions = {
-  host: config.tonToCw.redisHost,
-  port: config.tonToCw.redisPort,
-  retryStrategy: function (times: number) {
-    return Math.max(Math.min(Math.exp(times), 20000), 1000);
-  },
-};
-const tonQueue = new Queue("ton", { connection });
+
+console.log({ config });
 
 (async () => {
   try {
