@@ -40,7 +40,13 @@ export const createTonWorker = (
     async (job: Job<RelayCosmwasmData>) => {
       const data = job.data;
       const { data: packetAndProof, provenHeight, clientData } = data;
-      const currentHeight = await lightClientMaster.getTrustedHeight();
+      const currentHeight = await retry(
+        async () => {
+          return await lightClientMaster.getTrustedHeight();
+        },
+        3,
+        1000
+      );
       if (currentHeight < provenHeight) {
         console.log("[TON-WORKER] Update light client at", provenHeight);
         try {
