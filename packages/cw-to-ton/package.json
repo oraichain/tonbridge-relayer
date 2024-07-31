@@ -1,6 +1,6 @@
 {
   "name": "@oraichain/tonbridge-relayer-to-ton",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "main": "dist/index.js",
   "files": [
     "build/",
