@@ -19,10 +19,10 @@ dotenv.config();
 
 (async () => {
   const parser = new CosmwasmBridgeParser(process.env.WASM_BRIDGE);
-  const provenHeight = 30147961;
+  const provenHeight = 30164932;
   const needProvenHeight = provenHeight + 1;
   const packetTx =
-    "29BF270B349B6A0D5BB928C4540810AD467A2ABC2E67A2510C58D5218A599E26";
+    "658E2E9F7C921692789668274E1D4ECA62A0737C1DC67316651C0B463F928340";
   const { client, walletContract, key } = await createTonWallet(
     process.env.TON_MNEMONIC,
     process.env.NODE_ENV as Network
