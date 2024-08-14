@@ -40,7 +40,13 @@ export const createTonWorker = (
     async (job: Job<RelayCosmwasmData>) => {
       const data = job.data;
       const { data: packetAndProof, provenHeight, clientData } = data;
-      const currentHeight = await lightClientMaster.getTrustedHeight();
+      const currentHeight = await retry(
+        async () => {
+          return await lightClientMaster.getTrustedHeight();
+        },
+        3,
+        1000
+      );
       if (currentHeight < provenHeight) {
         console.log("[TON-WORKER] Update light client at", provenHeight);
         try {
@@ -60,7 +66,17 @@ export const createTonWorker = (
             3,
             5000
           );
-          await waitSeqno(walletContract, await walletContract.getSeqno());
+          retry(
+            async () => {
+              await waitSeqno(
+                walletContract,
+                await walletContract.getSeqno(),
+                15
+              );
+            },
+            3,
+            1000
+          );
           await sleep(30000); // TODO: Alter by tracing transaction to get the result
         } catch (error) {
           throw new Error(`[TON-WORKER] Update light client failed: ${error}`);
@@ -86,7 +102,13 @@ export const createTonWorker = (
         5000
       );
       console.log("[TON-WORKER] Relay packet successfully");
-      await waitSeqno(walletContract, await walletContract.getSeqno());
+      retry(
+        async () => {
+          await waitSeqno(walletContract, await walletContract.getSeqno(), 15);
+        },
+        3,
+        1000
+      );
     },
     {
       connection,

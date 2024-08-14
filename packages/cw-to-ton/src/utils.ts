@@ -46,7 +46,6 @@ export async function createTonWallet(
     throw new Error("Mnemonic is not set");
   }
   const key = await mnemonicToWalletKey(mnemonic.split(" "));
-  console.log(key.secretKey.toString("hex"));
   // NOTE: Testnet using WalletContractV3R2 and Mainnet using WalletContractV4
   let wallet = WalletContractV4.create({
     publicKey: key.publicKey,

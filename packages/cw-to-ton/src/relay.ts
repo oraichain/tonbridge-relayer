@@ -75,7 +75,7 @@ export async function relay(tonQueue: Queue, tonConfig: Config) {
           neededProvenHeight
         );
       },
-      2,
+      3,
       2000
     );
 
