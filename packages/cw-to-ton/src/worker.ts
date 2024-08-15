@@ -51,6 +51,7 @@ export const createTonWorker = (
         console.log("[TON-WORKER] Update light client at", provenHeight);
         try {
           // retry 3 times with 5s delay
+          const seqno = await walletContract.getSeqno();
           retry(
             async () => {
               await lightClientMaster.sendVerifyBlockHash(
@@ -68,16 +69,12 @@ export const createTonWorker = (
           );
           retry(
             async () => {
-              await waitSeqno(
-                walletContract,
-                await walletContract.getSeqno(),
-                15
-              );
+              await waitSeqno(walletContract, seqno, 15);
             },
             3,
             1000
           );
-          await sleep(30000); // TODO: Alter by tracing transaction to get the result
+          await sleep(35000); // TODO: Alter by tracing transaction to get the result
         } catch (error) {
           throw new Error(`[TON-WORKER] Update light client failed: ${error}`);
         }
@@ -86,6 +83,8 @@ export const createTonWorker = (
       const proofs = serializeProofs.map((proof) => {
         return ExistenceProof.fromJSON(proof);
       });
+      const seqno = await walletContract.getSeqno();
+
       retry(
         async () => {
           await bridgeAdapter.sendBridgeRecvPacket(
@@ -104,7 +103,7 @@ export const createTonWorker = (
       console.log("[TON-WORKER] Relay packet successfully");
       retry(
         async () => {
-          await waitSeqno(walletContract, await walletContract.getSeqno(), 15);
+          await waitSeqno(walletContract, seqno, 15);
         },
         3,
         1000
