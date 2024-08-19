@@ -6,6 +6,7 @@ import { parseWasmEvents } from "@oraichain/oraidex-common";
 import {
   BridgeAdapter,
   encodeNamespaces,
+  getAckPacketProofs,
   getExistenceProofSnakeCell,
   getPacketProofs,
 } from "@oraichain/ton-bridge-contracts";
@@ -22,7 +23,7 @@ dotenv.config();
   const provenHeight = 30475520;
   const needProvenHeight = provenHeight + 1;
   const packetTx =
-    "E25597BFC8CA90DE0C8FA39DFB77630EB6AEAD2498A558279B461C23A359584E";
+    "2AAC055FFDE3CA280E7737DC333AF19B859D70A0D4080F68054232B855196F71";
   const { client, walletContract, key } = await createTonWallet(
     process.env.TON_MNEMONIC,
     process.env.NODE_ENV as Network
@@ -40,28 +41,24 @@ dotenv.config();
   const filterByContractAddress = (attr: Record<string, string>) =>
     attr["_contract_address"] === process.env.WASM_BRIDGE;
   // This action come from user need to normalize and submit by relayer.
-  const sendToTonEvents = wasmAttr
+  const sendToCosmosEvents = wasmAttr
     .filter(filterByContractAddress)
-    .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.SEND_TO_TON);
-  const packetEvent = sendToTonEvents[0];
-  console.log(packetEvent);
-  const transferPacket = parser.transformEventToTransferPacket(
+    .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.SEND_TO_COSMOS);
+  const packetEvent = sendToCosmosEvents[0];
+
+  const ackPacket = parser.transformEventToTonAckPacket(
     BigInt(packetEvent["opcode_packet"]),
     BigInt(packetEvent["seq"]),
-    BigInt(packetEvent["token_origin"]),
-    BigInt(packetEvent["remote_amount"]),
-    BigInt(packetEvent["timeout_timestamp"]),
-    packetEvent["remote_receiver"],
-    packetEvent["remote_denom"],
-    packetEvent["local_sender"]
+    parseInt(packetEvent["ack"])
   );
-  const transferBoc = transferPacket.toBoc().toString("hex");
+  const ackBoc = ackPacket.toBoc().toString("hex");
+
   const tendermint37 = await Tendermint37Client.connect(
     process.env.COSMOS_RPC_URL
   );
   const queryClient = new QueryClient(tendermint37 as any);
   console.log(provenHeight, BigInt(packetEvent["seq"]));
-  const packetProofs = await getPacketProofs(
+  const packetProofs = await getAckPacketProofs(
     queryClient,
     process.env.WASM_BRIDGE,
     provenHeight,
@@ -75,7 +72,7 @@ dotenv.config();
     walletContract.sender(key.secretKey),
     {
       provenHeight: needProvenHeight,
-      packet: Cell.fromBoc(Buffer.from(transferBoc, "hex"))[0],
+      packet: Cell.fromBoc(Buffer.from(ackBoc, "hex"))[0],
       proofs: getExistenceProofSnakeCell(proofs as any),
     },
     { value: toNano("0.7") }
