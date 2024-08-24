@@ -12,6 +12,7 @@ import {
 import { mnemonicToWalletKey } from "@ton/crypto";
 import { NULL_TON_ADDRESS } from "./constants";
 import { BridgeAdapterPacketOpcodes } from "@oraichain/ton-bridge-contracts";
+import { setTimeout } from "timers/promises";
 
 export async function waitSeqno(
   walletContract:
@@ -27,7 +28,7 @@ export async function waitSeqno(
       throw new Error("transaction timeout");
     }
     console.log("waiting for transaction to confirm...");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await setTimeout(1000);
     currentSeqno = await walletContract.getSeqno();
     attempt++;
   }
@@ -84,10 +85,6 @@ export async function createTonWallet(
   return { client, walletContract, key };
 }
 
-export async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export async function isSuccessVmTx(tx: Transaction) {
   return (
     tx.description.type === "generic" &&
@@ -110,7 +107,7 @@ export async function retry<T>(
       if (i === retries - 1) {
         throw e;
       }
-      await sleep(delay);
+      await setTimeout(delay);
     }
   }
 }

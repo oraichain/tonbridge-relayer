@@ -54,11 +54,15 @@ const tonQueue = new Queue("ton", {
     lightClientMasterContract,
     bridgeAdapterContract
   );
-  tonWorker.run();
-  // Start watching
-  const cosmosWatcher = await relay(tonQueue, TonDefaultConfig);
-  await cosmosWatcher.start();
-  tonWorker.on("completed", async (job) => {
-    console.log("Job completed", job.id);
-  });
+  try {
+    tonWorker.run();
+    // Start watching
+    const cosmosWatcher = await relay(tonQueue, TonDefaultConfig);
+    await cosmosWatcher.start();
+    tonWorker.on("completed", async (job) => {
+      console.log("Job completed", job.id);
+    });
+  } catch (error) {
+    console.log("error: ", error);
+  }
 })();

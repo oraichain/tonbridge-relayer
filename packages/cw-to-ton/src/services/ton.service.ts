@@ -70,11 +70,11 @@ export abstract class Tracer {
       throw new Error("Timeout");
     }
 
-    const outTxs = await retry(
-      () => this.findOutgoingTransactions(transaction),
-      5,
-      10000
-    ).catch(console.error);
+    // const outTxs = await retry(
+    //   () => this.findOutgoingTransactions(transaction),
+    //   5,
+    //   10000
+    // ).catch(console.error);
     // do smth with out txs
     // if (outTxs) {
     //   for (const out of outTxs) {

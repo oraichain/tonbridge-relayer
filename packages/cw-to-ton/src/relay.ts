@@ -4,7 +4,7 @@ import { Config } from "./config";
 import {
   createCosmosBridgeWatcher,
   CosmwasmWatcherEvent,
-} from "@src/services/cosmos.service";
+} from "./services/cosmos.service";
 import { DuckDb } from "./services/duckdb.service";
 import { CosmosBlockOffset } from "./models/cosmwasm/block-offset";
 import { RelayCosmwasmData, TonWorkerJob } from "./worker";
@@ -52,6 +52,7 @@ export async function relay(tonQueue: Queue, tonConfig: Config) {
     tonConfig.wasmBridge,
     syncDataOpt
   );
+  console.log("before cosmoswatcher on");
   // UPDATE BLOCK OFFSET TO DATABASE
   cosmosWatcher.on(CosmwasmWatcherEvent.SYNC_DATA, async (chunk: Txs) => {
     const { offset: newOffset } = chunk;
@@ -68,15 +69,9 @@ export async function relay(tonQueue: Queue, tonConfig: Config) {
     const provenHeight = lastPackets.height;
     const neededProvenHeight = provenHeight + 1;
     // Sometimes needProvenBlock have not been end yet.
-    const updateLightClientData = await retry(
-      () => {
-        return createUpdateClientData(
-          tonConfig.cosmosRpcUrl,
-          neededProvenHeight
-        );
-      },
-      3,
-      2000
+    const updateLightClientData = await createUpdateClientData(
+      tonConfig.cosmosRpcUrl,
+      neededProvenHeight
     );
 
     const promiseTransferProofs = transferPackets.map((packet) => {

@@ -9,6 +9,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "license": "MIT",
   "dependencies": {
     "@cosmjs/cosmwasm-stargate": "^0.31.3",
@@ -23,7 +26,7 @@
     "@orbs-network/ton-access": "^2.3.3",
     "@ton/core": "^0.56.3",
     "@ton/crypto": "^3.2.0",
-    "@ton/ton": "^13.11.2",
+    "@ton/ton": "^14.0.0",
     "bullmq": "^5.7.15",
     "cosmjs-types": "^0.9.0",
     "dotenv": "^16.4.5",

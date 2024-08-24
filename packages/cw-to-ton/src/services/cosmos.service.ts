@@ -54,6 +54,7 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
       ackPackets.push(...data.ackPackets);
     });
 
+    console.log("transfer packets: ", transferPackets)
     return {
       transferPackets: transferPackets.toSorted(
         (a: BasicTxInfo, b: BasicTxInfo) => a.height - b.height
@@ -179,7 +180,7 @@ export class CosmwasmWatcher<T> extends EventEmitter {
       this.syncData.destroy();
     }
     this.running = true;
-    await this.syncData.start();
+    this.syncData.start();
     this.syncData.on(CHANNEL.QUERY, async (chunk: Txs) => {
       try {
         const parsedData = this.cosmwasmParser.processChunk(chunk) as Packets;

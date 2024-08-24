@@ -11,7 +11,7 @@ import {
 } from "@oraichain/ton-bridge-contracts";
 
 import { TonClient, WalletContractV4 } from "@ton/ton";
-import { retry, sleep, waitSeqno } from "./utils";
+import { retry, waitSeqno } from "./utils";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 
 export type RelayCosmwasmData = {
@@ -42,7 +42,7 @@ export const createTonWorker = (
       const { data: packetAndProof, provenHeight, clientData } = data;
       const currentHeight = await retry(
         async () => {
-          return await lightClientMaster.getTrustedHeight();
+          return lightClientMaster.getTrustedHeight();
         },
         3,
         1000
@@ -50,31 +50,18 @@ export const createTonWorker = (
       if (currentHeight < provenHeight) {
         console.log("[TON-WORKER] Update light client at", provenHeight);
         try {
-          // retry 3 times with 5s delay
           const seqno = await walletContract.getSeqno();
-          retry(
-            async () => {
-              await lightClientMaster.sendVerifyBlockHash(
-                sender,
-                {
-                  header: deserializeHeader(clientData.header),
-                  validators: clientData.validators.map(deserializeValidator),
-                  commit: deserializeCommit(clientData.lastCommit),
-                },
-                { value: toNano("3.5") }
-              );
+          await lightClientMaster.sendVerifyBlockHash(
+            sender,
+            {
+              header: deserializeHeader(clientData.header),
+              validators: clientData.validators.map(deserializeValidator),
+              commit: deserializeCommit(clientData.lastCommit),
             },
-            3,
-            5000
+            { value: toNano("3.5") }
           );
-          retry(
-            async () => {
-              await waitSeqno(walletContract, seqno, 15);
-            },
-            3,
-            1000
-          );
-          await sleep(35000); // TODO: Alter by tracing transaction to get the result
+          await waitSeqno(walletContract, seqno, 15);
+          // await sleep(35000); // TODO: Alter by tracing transaction to get the result
         } catch (error) {
           throw new Error(`[TON-WORKER] Update light client failed: ${error}`);
         }
@@ -85,20 +72,14 @@ export const createTonWorker = (
       });
       const seqno = await walletContract.getSeqno();
 
-      retry(
-        async () => {
-          await bridgeAdapter.sendBridgeRecvPacket(
-            sender,
-            {
-              provenHeight,
-              packet: Cell.fromBoc(Buffer.from(packet, "hex"))[0],
-              proofs: getExistenceProofSnakeCell(proofs),
-            },
-            { value: toNano("0.7") }
-          );
+      await bridgeAdapter.sendBridgeRecvPacket(
+        sender,
+        {
+          provenHeight,
+          packet: Cell.fromBoc(Buffer.from(packet, "hex"))[0],
+          proofs: getExistenceProofSnakeCell(proofs),
         },
-        3,
-        5000
+        { value: toNano("0.7") }
       );
       console.log("[TON-WORKER] Relay packet successfully");
       retry(
