@@ -16,13 +16,13 @@ import { Address, Cell, toNano } from "@ton/core";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 import * as dotenv from "dotenv";
 dotenv.config();
+const argv = process.argv.slice(2);
+const provenHeight = parseInt(argv[0]);
+const packetTx = argv[1];
 
 (async () => {
   const parser = new CosmwasmBridgeParser(process.env.WASM_BRIDGE);
-  const provenHeight = 30164932;
   const needProvenHeight = provenHeight + 1;
-  const packetTx =
-    "658E2E9F7C921692789668274E1D4ECA62A0737C1DC67316651C0B463F928340";
   const { client, walletContract, key } = await createTonWallet(
     process.env.TON_MNEMONIC,
     process.env.NODE_ENV as Network
@@ -66,7 +66,7 @@ dotenv.config();
     provenHeight,
     BigInt(packetEvent["seq"])
   );
-  console.log(packetProofs);
+
   const proofs = packetProofs.map((proof) => {
     return ExistenceProof.fromJSON(proof);
   });
