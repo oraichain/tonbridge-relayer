@@ -1,14 +1,8 @@
-import { SyncDataOptions } from "@oraichain/cosmos-rpc-sync";
 import {
   AckPacketWithBasicInfo,
   TransferPacketWithBasicInfo,
 } from "./@types/interfaces/cosmwasm";
-import { Config } from "./config";
-import {
-  createCosmosBridgeWatcher,
-  CosmosProofHandler,
-} from "@src/services/cosmos.service";
-import { DuckDb } from "./services/duckdb.service";
+import { CosmosProofHandler } from "@src/services/cosmos.service";
 import { CosmosBlockOffset } from "./models/block-offset";
 import { sleep } from "./utils";
 import { ACK } from "./dtos/packets/AckPacket";
@@ -31,7 +25,6 @@ export class PacketProcessor {
   cosmosBlockOffset: CosmosBlockOffset;
   cosmosProofHandler: CosmosProofHandler;
   tonHandler: TonHandler;
-
   pollingInterval: number;
   // Memory packets
   lock: boolean = false;
@@ -70,11 +63,25 @@ export class PacketProcessor {
   }
 
   async run() {
+    logger.info("PacketProcessor:Start running");
     while (true) {
       try {
         this.lock = true;
+        logger.debug(
+          `PacketProcessor:Before pop all pending packets, ${JSON.stringify(this.getPendingRelayPackets())}`
+        );
+        logger.debug(
+          `PacketProcessor:Before pop all pending packets, ${JSON.stringify(this.getPendingAckSuccessPackets())}`
+        );
         const pendingPackets = this._popAllPendingRelayPackets();
         const pendingAckSuccessPacket = this._popAllPendingAckSuccessPackets();
+        logger.debug(
+          `PacketProcessor:After pop all pending packets, ${JSON.stringify(this.getPendingRelayPackets())}`
+        );
+        logger.debug(
+          `PacketProcessor:After pop all pending packets, ${JSON.stringify(this.getPendingAckSuccessPackets())}`
+        );
+
         this.lock = false;
         this.processingPackets = [
           ...pendingPackets,
@@ -98,6 +105,15 @@ export class PacketProcessor {
         const finalUpdateHeight = Math.max(
           latestLightClientHeight,
           neededUpdateHeight
+        );
+        logger.debug(
+          `PacketProcessor:heightForQueryProof ${heightForQueryProof}`
+        );
+        logger.debug(
+          `PacketProcessor:neededUpdateHeight ${neededUpdateHeight}`
+        );
+        logger.debug(
+          `PacketProcessor:latestLightClientHeight ${latestLightClientHeight}`
         );
 
         if (finalUpdateHeight === neededUpdateHeight) {
@@ -127,13 +143,14 @@ export class PacketProcessor {
 
         if (packetProof.length !== this.processingPackets.length) {
           throw new Error(
-            "Packet proof length not match with processing packets length"
+            "`PacketProcessor:Packet proof length not match with processing packets length"
           );
         }
 
         // Get proof from minProvenHeight
         while (this.processingPackets.length > 1) {
           const packet = this.processingPackets.shift();
+          logger.debug(`PacketProcessor:packet.data ${packet.data}`);
           const proof = packetProof.shift();
           const data = packet.data;
           // TODO: should change to highload_wallet contract
@@ -143,6 +160,9 @@ export class PacketProcessor {
           );
         }
         await this.cosmosBlockOffset.updateBlockOffset(finalUpdateHeight);
+        logger.info(
+          `PacketProcessor:Update block offset to ${finalUpdateHeight}`
+        );
       } catch (error) {
         logger.error(`PacketProcessor:Error when run:${error}`);
         throw new Error(`PacketProcessor:Error when run:${error}`);
