@@ -12,6 +12,7 @@ import {
 import { mnemonicToWalletKey } from "@ton/crypto";
 import { NULL_TON_ADDRESS } from "./constants";
 import { BridgeAdapterPacketOpcodes } from "@oraichain/ton-bridge-contracts";
+import { Tx } from "@oraichain/cosmos-rpc-sync";
 
 export async function waitSeqno(
   walletContract:
@@ -133,4 +134,8 @@ export function getJobIdFromOpcodePacket(opcodePacket: number, seq: bigint) {
   return opcodePacket == BridgeAdapterPacketOpcodes.sendToTon
     ? `sendToTon-${seq}`
     : `ackSendToCosmos-${seq}`;
+}
+
+export function filterOutSuccessTx(tx: Tx) {
+  return tx.code === 0;
 }

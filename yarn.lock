@@ -2515,10 +2515,10 @@
     "@cosmjs/stargate" "0.29.4"
     "@cosmjs/tendermint-rpc" "^0.29.4"
 
-"@oraichain/ton-bridge-contracts@^0.15.8":
-  version "0.15.8"
-  resolved "https://registry.npmjs.org/@oraichain/ton-bridge-contracts/-/ton-bridge-contracts-0.15.8.tgz#7e5842bbb8cec6ac70319db2df0c961416d0d18a"
-  integrity sha512-0ZPIygoo+1pz7jp1Rv74P8tYltnLaX4y6bPhGP3S/OHGN1LiIyPE+ch08Ng+AqgYkt54uycJoyMKDCLXzNacCw==
+"@oraichain/ton-bridge-contracts@^0.15.9":
+  version "0.15.9"
+  resolved "https://registry.npmjs.org/@oraichain/ton-bridge-contracts/-/ton-bridge-contracts-0.15.9.tgz#279f78ac434d5df69ccf2e51c01e57484789e91e"
+  integrity sha512-M4ukzlCkPRS+3S+05g/P+82fXjBCe05kBqpJiaZkUDAN7UDbRQJH480AZWl8HotPiM1Ae2TKNl8GPivNmzmwRA==
   dependencies:
     "@cosmjs/tendermint-rpc" "^0.32.4"
     "@orbs-network/ton-access" "^2.3.3"
