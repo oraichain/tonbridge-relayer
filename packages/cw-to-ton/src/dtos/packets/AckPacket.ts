@@ -14,6 +14,7 @@ export enum ACK {
 }
 
 export class AckPacket implements IntoCell {
+  name: string = "AckPacket";
   opcode_packet: bigint;
   seq: bigint;
   ack: ACK;
@@ -30,6 +31,10 @@ export class AckPacket implements IntoCell {
       seq: attrs["seq"],
       ack: attrs["ack"],
     });
+  }
+
+  getName(): string {
+    return this.name + "-" + this.seq;
   }
 
   intoCell(): Cell {

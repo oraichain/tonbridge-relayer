@@ -6,30 +6,25 @@ import {
   LightClientMaster,
 } from "@oraichain/ton-bridge-contracts";
 import { Address } from "@ton/core";
-import { createTonWorker } from "./worker";
-import { relay } from "./relay";
-import { ConnectionOptions, Queue } from "bullmq";
+import { PacketProcessor } from "./PacketProcessor";
+
+import {
+  CosmosProofHandler,
+  CosmwasmWatcherEvent,
+  createCosmosBridgeWatcher,
+  DuckDb,
+  TonHandler,
+} from "./services";
+import { Packets } from "./@types";
+import { CosmosBlockOffset } from "./models";
 
 export async function createCwToTonRelayerWithConfig(config: Config) {
-  const connection: ConnectionOptions = {
-    host: config.redisHost,
-    port: config.redisPort,
-    retryStrategy: function (times: number) {
-      return Math.max(Math.min(Math.exp(times), 20000), 1000);
-    },
-  };
-  const tonQueue = new Queue("ton", {
-    connection,
-    defaultJobOptions: {
-      removeOnComplete: {
-        age: 1000 * 60 * 60 * 24 * 14, // 14 days
-        count: 1000,
-      },
-      removeOnFail: {
-        count: 5000,
-      },
-    },
-  });
+  const duckDb = await DuckDb.getInstance(config.connectionString);
+  const cosmosBlockOffset = new CosmosBlockOffset(duckDb);
+  if (config.wasmBridge === "") {
+    throw new Error("WASM_BRIDGE is required");
+  }
+
   const {
     walletContract,
     client: tonClient,
@@ -40,35 +35,52 @@ export async function createCwToTonRelayerWithConfig(config: Config) {
     config.tonCenter,
     config.tonApiKey
   );
-  const lightClientMaster = LightClientMaster.createFromAddress(
-    Address.parse(TonDefaultConfig.cosmosLightClientMaster)
+
+  const lightClientMaster = tonClient.open(
+    LightClientMaster.createFromAddress(
+      Address.parse(TonDefaultConfig.cosmosLightClientMaster)
+    )
   );
-  const bridgeAdapter = BridgeAdapter.createFromAddress(
-    Address.parse(TonDefaultConfig.tonBridge)
+  const bridgeAdapter = tonClient.open(
+    BridgeAdapter.createFromAddress(Address.parse(TonDefaultConfig.tonBridge))
   );
-  const lightClientMasterContract = tonClient.open(lightClientMaster);
-  const bridgeAdapterContract = tonClient.open(bridgeAdapter);
-  // Run workers
-  const tonWorker = createTonWorker(
-    connection,
+  const cosmosProofHandler = await CosmosProofHandler.create(
+    config.cosmosRpcUrl,
+    config.wasmBridge
+  );
+
+  const tonHandler = new TonHandler(
     walletContract,
-    walletContract.sender(key.secretKey),
     tonClient,
-    lightClientMasterContract,
-    bridgeAdapterContract
+    walletContract.sender(key.secretKey),
+    lightClientMaster,
+    bridgeAdapter,
+    config.syncInterval
   );
-  tonWorker.run();
-  tonWorker.on("completed", async (job) => {
-    console.log("Job completed", job.id);
+
+  const packetProcessor = new PacketProcessor({
+    cosmosBlockOffset,
+    cosmosProofHandler,
+    tonHandler,
+    pollingInterval: config.syncInterval,
   });
-  tonWorker.on("error", (error) => {
-    console.log("Error:", error);
-  });
-  return await relay(tonQueue, config);
+
+  const watcher = await createCosmosBridgeWatcher(config);
+  packetProcessor.run();
+  watcher.on(
+    CosmwasmWatcherEvent.DATA,
+    async (data: Packets & { offset: number }) => {
+      const { transferPackets, ackPackets } = data;
+      packetProcessor.addPendingTransferPackets(transferPackets);
+      packetProcessor.addPendingAckPackets(ackPackets);
+    }
+  );
+
+  return watcher;
 }
 
 export * from "./@types";
 export type { Config } from "./config";
 export * from "./utils";
-export * from "./models/cosmwasm/block-offset";
+export * from "./models/block-offset";
 export * from "./worker";

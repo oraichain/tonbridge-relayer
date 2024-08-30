@@ -15,6 +15,7 @@ export interface TransferPacketArgs {
 }
 
 export class TransferPacket implements IntoCell {
+  name: string = "TransferPacket";
   seq: number;
   opcode_packet: number;
   token_origin: number;
@@ -33,6 +34,10 @@ export class TransferPacket implements IntoCell {
     this.token_origin = Number(args.token_origin);
     this.opcode_packet = Number(args.opcode_packet);
     this.seq = Number(args.seq);
+  }
+
+  getName(): string {
+    return this.name + "-" + this.seq;
   }
 
   static fromRawAttributes(attrs: Record<string, string>) {

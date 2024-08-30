@@ -1,9 +1,9 @@
+import type { Logger } from "winston";
 declare global {
+  const logger: Logger;
   namespace NodeJS {
     interface ProcessEnv {
       NODE_ENV: string;
-      REDIS_HOST: string;
-      REDIS_PORT: number;
       TON_MNEMONIC: string;
       COSMOS_MNEMONIC: string;
       // SYNC_OPTS

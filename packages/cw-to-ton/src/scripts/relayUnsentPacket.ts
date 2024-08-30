@@ -8,9 +8,10 @@ import {
   getPacketProofs,
 } from "@oraichain/ton-bridge-contracts";
 import { Network } from "@orbs-network/ton-access";
+import { TransferPacket } from "@src/dtos/packets/TransferPacket";
 import { BRIDGE_WASM_ACTION, CosmwasmBridgeParser } from "@src/services";
 import { createTonWallet, waitSeqno } from "@src/utils";
-import { Address, Cell, toNano } from "@ton/core";
+import { Address, toNano } from "@ton/core";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 import * as dotenv from "dotenv";
 dotenv.config();
@@ -19,7 +20,6 @@ const provenHeight = parseInt(argv[0]);
 const packetTx = argv[1];
 
 (async () => {
-  const parser = new CosmwasmBridgeParser(process.env.WASM_BRIDGE);
   const needProvenHeight = provenHeight + 1;
   const { client, walletContract, key } = await createTonWallet(
     process.env.TON_MNEMONIC,
@@ -41,18 +41,8 @@ const packetTx = argv[1];
     .filter(filterByContractAddress)
     .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.SEND_TO_TON);
   const packetEvent = sendToTonEvents[0];
-  console.log(packetEvent);
-  const transferPacket = parser.transformEventToTransferPacket(
-    BigInt(packetEvent["opcode_packet"]),
-    BigInt(packetEvent["seq"]),
-    BigInt(packetEvent["token_origin"]),
-    BigInt(packetEvent["remote_amount"]),
-    BigInt(packetEvent["timeout_timestamp"]),
-    packetEvent["remote_receiver"],
-    packetEvent["remote_denom"],
-    packetEvent["local_sender"]
-  );
-  const transferBoc = transferPacket.toBoc().toString("hex");
+
+  const transferPacket = TransferPacket.fromRawAttributes(packetEvent);
   const tendermint37 = await Tendermint37Client.connect(
     process.env.COSMOS_RPC_URL
   );
@@ -72,7 +62,7 @@ const packetTx = argv[1];
     walletContract.sender(key.secretKey),
     {
       provenHeight: needProvenHeight,
-      packet: Cell.fromBoc(Buffer.from(transferBoc, "hex"))[0],
+      packet: transferPacket.intoCell(),
       proofs: getExistenceProofSnakeCell(proofs as any),
     },
     { value: toNano("0.7") }

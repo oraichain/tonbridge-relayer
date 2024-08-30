@@ -28,8 +28,10 @@ export async function waitSeqno(
       throw new Error("transaction timeout");
     }
     console.log("waiting for transaction to confirm...");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    currentSeqno = await walletContract.getSeqno();
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    currentSeqno = await retry(async () => {
+      return walletContract.getSeqno();
+    });
     attempt++;
   }
   console.log("transaction confirmed!");
@@ -100,8 +102,8 @@ export async function isSuccessVmTx(tx: Transaction) {
 
 export async function retry<T>(
   fn: (...params: any[]) => Promise<T>,
-  retries: number,
-  delay: number,
+  retries: number = 3,
+  delay: number = 3000,
   ...params: any[]
 ): Promise<T> {
   for (let i = 0; i < retries; i++) {

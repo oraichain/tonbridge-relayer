@@ -21,6 +21,9 @@ import {
 import { TransferPacket } from "@src/dtos/packets/TransferPacket";
 import { AckPacket } from "@src/dtos/packets/AckPacket";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
+import { Config } from "@src/config";
+import { DuckDb } from "@src/duckdb.service";
+import { CosmosBlockOffset } from "@src/models";
 
 export const enum BRIDGE_WASM_ACTION {
   SEND_TO_TON = "send_to_ton",
@@ -153,7 +156,7 @@ export class CosmwasmWatcher<T> extends EventEmitter {
   }
 }
 
-export class CosmwasmProofHandler {
+export class CosmosProofHandler {
   cosmosRpcUrl: string;
   cosmosBridgeAddress: string;
   queryClient: QueryClient;
@@ -171,11 +174,11 @@ export class CosmwasmProofHandler {
   static async create(
     cosmosRpcUrl: string,
     cosmosBridgeAddress: string
-  ): Promise<CosmwasmProofHandler> {
+  ): Promise<CosmosProofHandler> {
     const queryClient = new QueryClient(
       await Tendermint34Client.connect(cosmosRpcUrl)
     );
-    return new CosmwasmProofHandler(
+    return new CosmosProofHandler(
       cosmosRpcUrl,
       cosmosBridgeAddress,
       queryClient
@@ -195,14 +198,16 @@ export class CosmwasmProofHandler {
           block: { header },
         },
         { validators },
-      ] = await Promise.all([
-        tendermintClient.block(height + 1),
-        tendermintClient.block(height),
-        tendermintClient.validators({
-          height,
-          per_page: 100,
-        }),
-      ]);
+      ] = await retry(() => {
+        return Promise.all([
+          tendermintClient.block(height + 1),
+          tendermintClient.block(height),
+          tendermintClient.validators({
+            height,
+            per_page: 100,
+          }),
+        ]);
+      });
 
       return {
         validators: validators.map(serializeValidator),
@@ -300,12 +305,24 @@ export const createUpdateClientData = async (
   }
 };
 
-export const createCosmosBridgeWatcher = (
-  bridgeWasmAddress: string,
-  syncDataOpt: SyncDataOptions
-) => {
+export const createCosmosBridgeWatcher = async (config: Config) => {
+  const duckDb = await DuckDb.getInstance(config.connectionString);
+  const blockOffset = new CosmosBlockOffset(duckDb);
+  await blockOffset.createTable();
+  const offset = await blockOffset.mayLoadBlockOffset(config.syncBlockOffSet);
+  const syncDataOpt: SyncDataOptions = {
+    rpcUrl: config.cosmosRpcUrl,
+    limit: config.syncLimit,
+    maxThreadLevel: config.syncThreads,
+    offset: offset,
+    interval: config.syncInterval,
+    queryTags: [],
+  };
+  if (offset < config.syncBlockOffSet) {
+    syncDataOpt.offset = config.syncBlockOffSet;
+  }
   const syncData = new SyncData(syncDataOpt);
-  const bridgeParser = new CosmwasmBridgeParser(bridgeWasmAddress);
+  const bridgeParser = new CosmwasmBridgeParser(config.wasmBridge);
   const cosmwasmWatcher = new CosmwasmWatcher(syncData, bridgeParser);
   return cosmwasmWatcher;
 };
