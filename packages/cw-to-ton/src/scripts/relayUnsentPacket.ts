@@ -9,7 +9,7 @@ import {
 } from "@oraichain/ton-bridge-contracts";
 import { Network } from "@orbs-network/ton-access";
 import { TransferPacket } from "@src/dtos/packets/TransferPacket";
-import { BRIDGE_WASM_ACTION, CosmwasmBridgeParser } from "@src/services";
+import { BRIDGE_WASM_ACTION } from "@src/services";
 import { createTonWallet, waitSeqno } from "@src/utils";
 import { Address, toNano } from "@ton/core";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
