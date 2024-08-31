@@ -7,7 +7,7 @@ export const logger = (label: string, webhookUrl: string, loglevel?: string) =>
       format.label({ label }),
       format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
       format.printf((info) => {
-        return `[${info.label}] ${info.timestamp} ${info.level}: ${info.message}`;
+        return `${info.timestamp} [${info.level.toUpperCase()}] [${info.label}]: ${info.message}`;
       })
     ),
     transports: [

@@ -15,6 +15,7 @@ import TonToCwRelayer from "./index";
 import dotenv from "dotenv";
 import { initSignClient } from "./client";
 import { intToIP } from "./constants";
+import { createLogger, format, transports } from "winston";
 
 dotenv.config();
 
@@ -30,6 +31,11 @@ function validate() {
 
 (async () => {
   validate();
+  const logger = createLogger({
+    level: "info",
+    format: format.combine(format.timestamp(), format.json()),
+    transports: [new transports.Console()],
+  });
   const client = await initSignClient(process.env.MNEMONIC);
   // setup lite engine server
   const { liteservers } = await fetch(
@@ -64,14 +70,21 @@ function validate() {
     CW_TON_BRIDGE
   );
 
-  const blockProcessor = new TonBlockProcessor(validator, liteClient, tonWeb);
+  const blockProcessor = new TonBlockProcessor(
+    validator,
+    liteClient,
+    tonWeb,
+    logger
+  );
   const txProcessor = new TonTxProcessor(
     validator,
     bridge,
     liteClient,
     blockProcessor,
-    JETTON_BRIDGE
-    // "b4c796dc353687b1b571da07ef428e1d90eeac4922c8c2ee19b82a41dd66cac3"
+    JETTON_BRIDGE,
+    logger
+
+    // "b4c796dc353687b1b571da07ef428e1d90eeac4922c8c2ee19b82a41dd66cac3",
   );
 
   const relayer = new TonToCwRelayer()

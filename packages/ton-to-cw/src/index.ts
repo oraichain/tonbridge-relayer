@@ -15,10 +15,12 @@ import {
   TonbridgeBridgeClient,
   TonbridgeValidatorClient,
 } from "@oraichain/tonbridge-contracts-sdk";
+import { Logger } from "winston";
 
 export default class TonToCwRelayer {
   private blockProcessor: TonBlockProcessor;
   private txProcessor: TonTxProcessor;
+  private logger: Logger;
 
   withBlockProcessor(processor: TonBlockProcessor) {
     this.blockProcessor = processor;
@@ -27,6 +29,10 @@ export default class TonToCwRelayer {
 
   withTxProcessor(processor: TonTxProcessor) {
     this.txProcessor = processor;
+    return this;
+  }
+  withLogger(logger: Logger) {
+    this.logger = logger;
     return this;
   }
 
@@ -43,7 +49,7 @@ export default class TonToCwRelayer {
           await this.blockProcessor.queryKeyBlock(
             latestMasterchainBlock.last.seqno
           );
-        console.log(
+        this.logger.info(
           "Prepare to verify masterchain keyblock: ",
           parsedBlock.info.seq_no
         );
@@ -54,14 +60,17 @@ export default class TonToCwRelayer {
         );
         await this.txProcessor.processTransactions();
       } catch (error) {
-        console.error("error processing block and tx: ", error);
+        this.logger.error("error processing block and tx: ", error);
       }
       await setTimeout(processInterval);
     }
   }
 }
 
-export async function createTonToCwRelayerWithConfig(config: Config) {
+export async function createTonToCwRelayerWithConfig(
+  config: Config,
+  injectedLogger: Logger
+) {
   const client = await initSignClient(config.mnemonic);
   // setup lite engine server
   const { liteservers } = await fetch(
@@ -96,16 +105,23 @@ export async function createTonToCwRelayerWithConfig(config: Config) {
     config.cwTonBridge
   );
 
-  const blockProcessor = new TonBlockProcessor(validator, liteClient, tonWeb);
+  const blockProcessor = new TonBlockProcessor(
+    validator,
+    liteClient,
+    tonWeb,
+    injectedLogger
+  );
   const txProcessor = new TonTxProcessor(
     validator,
     bridge,
     liteClient,
     blockProcessor,
-    config.jettonBridge
+    config.jettonBridge,
+    injectedLogger
   );
 
   const relayer = new TonToCwRelayer()
+    .withLogger(injectedLogger)
     .withBlockProcessor(blockProcessor)
     .withTxProcessor(txProcessor);
 

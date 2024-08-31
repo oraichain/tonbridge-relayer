@@ -9,6 +9,7 @@ import TonBlockProcessor from "./block-processor";
 import { setTimeout } from "timers/promises";
 
 import { OPCODES } from "./constants";
+import { Logger } from "winston";
 
 export default class TonTxProcessor {
   private limitPerTxQuery = 100; // limit per query
@@ -21,6 +22,7 @@ export default class TonTxProcessor {
     protected readonly liteClient: LiteClient,
     protected readonly blockProcessor: TonBlockProcessor,
     protected readonly jettonBridgeAddress: string,
+    protected logger: Logger,
     protected latestProcessedTxHash: StringHex = ""
   ) {
     this.initiallatestProcessedTxHash = latestProcessedTxHash;
@@ -42,7 +44,7 @@ export default class TonTxProcessor {
       // workaround. Bug of loadTransaction that causes the prev trans hash to be incomplete
       if (offset.hash.length === 63) {
         offset.hash = "0" + offset.hash;
-        console.log("new offset hash: ", offset.hash);
+        this.logger.info("TonTxProcessor:new offset hash: ", offset.hash);
       }
       const rawTxs = await this.liteClient.getAccountTransactions(
         jettonAddr,
@@ -74,8 +76,8 @@ export default class TonTxProcessor {
           hash: txs[txs.length - 1].tx.prevTransactionHash.toString(16),
           lt: txs[txs.length - 1].tx.prevTransactionLt.toString(10),
         };
-        console.log("offset: ", offset);
-        // console.log("txhash bigint: ", txs[txs.length - 1].tx.prevTransactionHash)
+        this.logger.info("TonTxProcessor offset: ", offset);
+        // this.logger.info("TonTxProcessortxhash bigint: ", txs[txs.length - 1].tx.prevTransactionHash)
         await setTimeout(2000);
         continue;
       } else {
@@ -94,18 +96,26 @@ export default class TonTxProcessor {
   async processTransactions() {
     try {
       const transactions = await this.queryUnprocessedTransactions();
-      console.log("unprocessed transactions: ", transactions.length);
+      this.logger.info(
+        "TonTxProcessor:unprocessed transactions: " + transactions.length
+      );
       // since we query our transactions from latest to earliest -> process the latest txs first
       for (const tx of transactions) {
         try {
           await this.processTransaction(tx);
         } catch (error) {
-          console.error("error processing transaction: ", error);
+          this.logger.error(
+            "TonTxProcessor:Error processing transaction: ",
+            error
+          );
         }
       }
     } catch (error) {
       // reset latestProcessedTxHash so we can start over to prevent missed txs in case of having errors
-      console.error("error querying unprocessed transactions: ", error);
+      this.logger.error(
+        "TonTxProcessor:Error querying unprocessed transactions: ",
+        error
+      );
       this.latestProcessedTxHash = this.initiallatestProcessedTxHash;
       return;
     }
@@ -131,7 +141,9 @@ export default class TonTxProcessor {
       }
     }
     if (!isValidTx) {
-      console.log(`Transaction ${txHash} is invalid tx. We ignore it.`);
+      this.logger.info(
+        `TonTxProcessor:Transaction ${txHash} is invalid tx. We ignore it.`
+      );
       return;
     }
     try {
@@ -142,8 +154,9 @@ export default class TonTxProcessor {
         await this.blockProcessor.verifyMasterchainBlockByBlockId(tx.blockId);
       }
     } catch (error) {
-      console.log(
-        `Cannot verify blocks related to transaction ${txHash} because: ${error}`
+      this.logger.error(
+        `TonTxProcessor:Cannot verify blocks related to transaction ${txHash}`,
+        error
       );
       return;
     }
@@ -160,8 +173,8 @@ export default class TonTxProcessor {
       txProof: txWithProof.proof.toString("hex"),
     });
 
-    console.log(
-      `Verified tx with hash ${txHash} in block ${tx.blockId.seqno} successfully`
+    this.logger.info(
+      `TonTxProcessor:sVerified tx with hash ${txHash} in block ${tx.blockId.seqno} successfully`
     );
   }
 }

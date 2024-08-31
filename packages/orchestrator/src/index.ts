@@ -23,6 +23,11 @@ let appLogger: Logger;
       config.appConfig.webhookUrl,
       config.appConfig.loglevel
     );
+    const tonToCwLogger = createServiceLogger(
+      "TonToCwRelayer",
+      config.appConfig.webhookUrl,
+      config.appConfig.loglevel
+    );
     const app = express();
     const port = process.env.HEALTH_CHECK_PORT
       ? Number(process.env.HEALTH_CHECK_PORT)
@@ -35,10 +40,10 @@ let appLogger: Logger;
     app.listen(port, "0.0.0.0", async () => {
       appLogger.info(`Server is running at http://0.0.0.0:${port}`);
       const [tonToCwRelayer, cwToTonRelayer] = await Promise.all([
-        createTonToCwRelayerWithConfig(config.tonToCw),
+        createTonToCwRelayerWithConfig(config.tonToCw, tonToCwLogger),
         createCwToTonRelayerWithConfig(config.cwToTon, cwToTonLogger),
       ]);
-      // tonToCwRelayer.relay();
+      tonToCwRelayer.relay();
       cwToTonRelayer.start();
       cwToTonRelayer.on("error", (error) => {
         appLogger.error(`cwToTonRelayer`, error);

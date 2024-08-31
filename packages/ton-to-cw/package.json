@@ -29,7 +29,8 @@
     "bignumber.js": "^9.1.2",
     "cosmjs-types": "0.8.0",
     "ton-lite-client": "^3.0.0",
-    "tonweb": "^0.0.66"
+    "tonweb": "^0.0.66",
+    "winston": "^3.14.2"
   },
   "license": "MIT"
 }
