@@ -1,17 +1,22 @@
 import { Config as CwToTonConfig } from "@oraichain/tonbridge-relayer-to-ton";
 import type { Config as TonToCwConfig } from "@oraichain/tonbridge-relayer-to-cw";
+
 import * as dotenv from "dotenv";
+
 dotenv.config();
 
 export type Config = {
+  appConfig: {
+    webhookUrl: string;
+    heathCheckPort: number;
+    loglevel: string;
+  };
   cwToTon: CwToTonConfig;
   tonToCw: TonToCwConfig;
 };
 
 export function loadConfig(): Config {
   const cwToTon: CwToTonConfig = {
-    redisHost: process.env.REDIS_HOST || "http://localhost",
-    redisPort: Number(process.env.REDIS_PORT || 6379),
     tonMnemonic: process.env.TON_MNEMONIC || "",
     cosmosRpcUrl: process.env.COSMOS_RPC_URL || "https://rpc.orai.io/",
     syncBlockOffSet: Number(process.env.SYNC_BLOCK_OFFSET || 20000000),
@@ -38,7 +43,14 @@ export function loadConfig(): Config {
   };
 
   return {
+    appConfig: {
+      webhookUrl: process.env.WEBHOOK_URL || "",
+      heathCheckPort: Number(process.env.HEALTH_CHECK_PORT || 3000),
+      loglevel: process.env.LOG_LEVEL || "info",
+    },
     cwToTon,
     tonToCw,
   };
 }
+
+export * from "./logger";

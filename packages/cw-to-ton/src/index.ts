@@ -7,7 +7,6 @@ import {
 } from "@oraichain/ton-bridge-contracts";
 import { Address } from "@ton/core";
 import { PacketProcessor } from "./PacketProcessor";
-
 import {
   CosmosProofHandler,
   CosmwasmWatcherEvent,
@@ -17,14 +16,23 @@ import {
 } from "./services";
 import { Packets } from "./@types";
 import { CosmosBlockOffset } from "./models";
+import { Logger } from "winston";
 
-export async function createCwToTonRelayerWithConfig(config: Config) {
+export async function createCwToTonRelayerWithConfig(
+  config: Config,
+  injectLogger: Logger
+) {
+  const logger = injectLogger;
   const duckDb = await DuckDb.getInstance(config.connectionString);
   const cosmosBlockOffset = new CosmosBlockOffset(duckDb);
+  await cosmosBlockOffset.createTable();
+  const startOffset = await cosmosBlockOffset.mayLoadBlockOffset(
+    config.syncBlockOffSet
+  );
+  logger.info(`CW_TO_TON start at: ${startOffset}`);
   if (config.wasmBridge === "") {
     throw new Error("WASM_BRIDGE is required");
   }
-
   const {
     walletContract,
     client: tonClient,
@@ -35,7 +43,6 @@ export async function createCwToTonRelayerWithConfig(config: Config) {
     config.tonCenter,
     config.tonApiKey
   );
-
   const lightClientMaster = tonClient.open(
     LightClientMaster.createFromAddress(
       Address.parse(TonDefaultConfig.cosmosLightClientMaster)
@@ -48,7 +55,6 @@ export async function createCwToTonRelayerWithConfig(config: Config) {
     config.cosmosRpcUrl,
     config.wasmBridge
   );
-
   const tonHandler = new TonHandler(
     walletContract,
     tonClient,
@@ -57,25 +63,31 @@ export async function createCwToTonRelayerWithConfig(config: Config) {
     bridgeAdapter,
     config.syncInterval
   );
-
   const packetProcessor = new PacketProcessor({
     cosmosBlockOffset,
     cosmosProofHandler,
     tonHandler,
     pollingInterval: config.syncInterval,
+    logger,
   });
-
   const watcher = await createCosmosBridgeWatcher(config);
   packetProcessor.run();
+
   watcher.on(
     CosmwasmWatcherEvent.DATA,
     async (data: Packets & { offset: number }) => {
-      const { transferPackets, ackPackets } = data;
-      packetProcessor.addPendingTransferPackets(transferPackets);
-      packetProcessor.addPendingAckPackets(ackPackets);
+      const { transferPackets, ackPackets, offset } = data;
+      logger.info(`CosmosWatcher synced at block: ${offset}`);
+      if (transferPackets && transferPackets.length > 0) {
+        logger.info(`Found ${transferPackets.length} TransferPackets`);
+        packetProcessor.addPendingTransferPackets(transferPackets);
+      }
+      if (ackPackets && ackPackets.length > 0) {
+        logger.info(`Found ${ackPackets.length} AckPackets`);
+        packetProcessor.addPendingAckPackets(ackPackets);
+      }
     }
   );
-
   return watcher;
 }
 

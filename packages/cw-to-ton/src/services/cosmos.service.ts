@@ -138,7 +138,9 @@ export class CosmwasmWatcher<T> extends EventEmitter {
           (parsedData.transferPackets.length > 0 ||
             parsedData.ackPackets.length > 0)
         ) {
-          this.emit(CosmwasmWatcherEvent.DATA, { parsedData, offset });
+          this.emit(CosmwasmWatcherEvent.DATA, { ...parsedData, offset });
+        } else {
+          this.emit(CosmwasmWatcherEvent.DATA, { offset });
         }
       } catch (e) {
         this.emit("error", `CosmwasmWatcher:Error when parsing data:${e}`);

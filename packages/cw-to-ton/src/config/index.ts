@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
-dotenv.config();
 
+dotenv.config();
 export type Config = {
   tonMnemonic: string;
   cosmosRpcUrl: string;

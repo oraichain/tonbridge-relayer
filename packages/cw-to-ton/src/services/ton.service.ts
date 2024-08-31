@@ -75,7 +75,6 @@ export class TonHandler {
   };
 
   async updateLightClient(clientData: LightClientData) {
-    logger.debug(`TonHandler:updateLightClient:${JSON.stringify(clientData)}`);
     const header = deserializeHeader(clientData.header);
     const height = BigInt(header.height);
     await retry(
@@ -125,7 +124,6 @@ export class TonHandler {
     packet: IntoCell,
     proofs: ExistenceProof[]
   ) {
-    logger.debug(`TonHandler:sendPacket:${JSON.stringify(packet)}`);
     try {
       const seqno = await retry(async () => {
         try {

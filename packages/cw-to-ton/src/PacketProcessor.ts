@@ -8,6 +8,9 @@ import { sleep } from "./utils";
 import { ACK } from "./dtos/packets/AckPacket";
 import { TonHandler } from "./services";
 import { TransferPacket } from "./dtos/packets/TransferPacket";
+import { Logger } from "winston";
+import { getExistenceProofSnakeCell } from "@oraichain/ton-bridge-contracts";
+import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 
 //@ts-ignore
 BigInt.prototype.toJSON = function () {
@@ -19,6 +22,7 @@ export class PacketProcessorArgs {
   cosmosProofHandler: CosmosProofHandler;
   tonHandler: TonHandler;
   pollingInterval: number;
+  logger: Logger;
 }
 
 export class PacketProcessor {
@@ -26,6 +30,7 @@ export class PacketProcessor {
   cosmosProofHandler: CosmosProofHandler;
   tonHandler: TonHandler;
   pollingInterval: number;
+  logger: Logger;
   // Memory packets
   lock: boolean = false;
   pendingRelayPackets: (
@@ -41,6 +46,7 @@ export class PacketProcessor {
     this.cosmosProofHandler = args.cosmosProofHandler;
     this.tonHandler = args.tonHandler;
     this.pollingInterval = args.pollingInterval || 5000;
+    this.logger = args.logger;
   }
 
   addPendingTransferPackets(transferPackets: TransferPacketWithBasicInfo[]) {
@@ -48,6 +54,9 @@ export class PacketProcessor {
       return;
     }
     this.pendingRelayPackets.push(...transferPackets);
+    this.logger.info(
+      `PacketProcessor:Added ${transferPackets.length} TransferPackets`
+    );
   }
 
   addPendingAckPackets(ackPackets: AckPacketWithBasicInfo[]) {
@@ -60,25 +69,26 @@ export class PacketProcessor {
         this.pendingRelayPackets.push(packet);
       }
     });
+    this.logger.info(`PacketProcessor:Added ${ackPackets.length} AckPackets`);
   }
 
   async run() {
-    logger.info("PacketProcessor:Start running");
+    this.logger.info("PacketProcessor:Start running");
     while (true) {
       try {
         this.lock = true;
-        logger.debug(
+        this.logger.debug(
           `PacketProcessor:Before pop all pending packets, ${JSON.stringify(this.getPendingRelayPackets())}`
         );
-        logger.debug(
+        this.logger.debug(
           `PacketProcessor:Before pop all pending packets, ${JSON.stringify(this.getPendingAckSuccessPackets())}`
         );
         const pendingPackets = this._popAllPendingRelayPackets();
         const pendingAckSuccessPacket = this._popAllPendingAckSuccessPackets();
-        logger.debug(
+        this.logger.debug(
           `PacketProcessor:After pop all pending packets, ${JSON.stringify(this.getPendingRelayPackets())}`
         );
-        logger.debug(
+        this.logger.debug(
           `PacketProcessor:After pop all pending packets, ${JSON.stringify(this.getPendingAckSuccessPackets())}`
         );
 
@@ -89,10 +99,11 @@ export class PacketProcessor {
         ];
         if (pendingPackets.length === 0) {
           this.addPendingAckPackets(pendingAckSuccessPacket);
+          this.logger.info("PacketProcessor:No pending packets");
           await sleep(this.pollingInterval);
           continue;
         }
-        logger.info(
+        this.logger.info(
           `PacketProcessor:Processing ${this.processingPackets.length} packets`
         );
         let heightForQueryProof = this.getHeightLatestPackets([
@@ -106,17 +117,23 @@ export class PacketProcessor {
           latestLightClientHeight,
           neededUpdateHeight
         );
-        logger.debug(
+        this.logger.debug(
           `PacketProcessor:heightForQueryProof ${heightForQueryProof}`
         );
-        logger.debug(
+        this.logger.debug(
           `PacketProcessor:neededUpdateHeight ${neededUpdateHeight}`
         );
-        logger.debug(
+        this.logger.debug(
           `PacketProcessor:latestLightClientHeight ${latestLightClientHeight}`
         );
 
-        if (finalUpdateHeight === neededUpdateHeight) {
+        if (
+          finalUpdateHeight === neededUpdateHeight &&
+          finalUpdateHeight !== latestLightClientHeight
+        ) {
+          this.logger.info(
+            `PacketProcessor:Update light client to ${finalUpdateHeight}`
+          );
           const clientData =
             await this.cosmosProofHandler.createUpdateClientData(
               finalUpdateHeight
@@ -124,9 +141,18 @@ export class PacketProcessor {
           await this.tonHandler.updateLightClient(clientData);
         } else if (finalUpdateHeight == latestLightClientHeight) {
           heightForQueryProof = latestLightClientHeight - 1;
+          this.logger.info(
+            `PacketProcessor:Light client height is larger than neededUpdateHeight. Update heightForQueryProof ${heightForQueryProof}`
+          );
         }
         // FIXME: This may reach rate limit if the number of packets is too large
-        const packetProof = await Promise.all(
+        this.logger.info(
+          `PacketProcessor:Get proofs at ${heightForQueryProof}`
+        );
+        this.logger.debug(
+          "PacketProcessor:packet.data" + JSON.stringify(this.processingPackets)
+        );
+        const serializedProofs = await Promise.allSettled(
           this.processingPackets.map((packet) => {
             if (packet.data instanceof TransferPacket) {
               return this.cosmosProofHandler.getPacketProofs(
@@ -141,30 +167,45 @@ export class PacketProcessor {
           })
         );
 
-        if (packetProof.length !== this.processingPackets.length) {
+        const packetProofs = serializedProofs.map((proofs) => {
+          if (proofs.status === "rejected") {
+            return [];
+          }
+          return proofs.value.map((proof) => {
+            if (proof) return ExistenceProof.fromJSON(proof);
+          });
+        });
+
+        if (packetProofs.length !== this.processingPackets.length) {
           throw new Error(
-            "`PacketProcessor:Packet proof length not match with processing packets length"
+            "PacketProcessor:Packet proof length not match with processing packets length"
           );
         }
 
         // Get proof from minProvenHeight
-        while (this.processingPackets.length > 1) {
+        while (this.processingPackets.length > 0) {
           const packet = this.processingPackets.shift();
-          logger.debug(`PacketProcessor:packet.data ${packet.data}`);
-          const proof = packetProof.shift();
+          this.logger.debug(`PacketProcessor:packet.data ${packet.data}`);
+          const proof = packetProofs.shift();
           const data = packet.data;
           // TODO: should change to highload_wallet contract
+          if (proof.length === 0) {
+            this.logger.error(
+              `PacketProcessor:NotFound proof for ${data.getName()} at ${packet.hash}`
+            );
+            continue;
+          }
           await this.tonHandler.sendPacket(finalUpdateHeight, data, proof);
-          logger.info(
+          this.logger.info(
             `PacketProcessor:Send packet ${data.getName()} to TON successfully`
           );
         }
         await this.cosmosBlockOffset.updateBlockOffset(finalUpdateHeight);
-        logger.info(
+        this.logger.info(
           `PacketProcessor:Update block offset to ${finalUpdateHeight}`
         );
       } catch (error) {
-        logger.error(`PacketProcessor:Error when run:${error}`);
+        this.logger.error(`PacketProcessor:Error when run`, error);
         throw new Error(`PacketProcessor:Error when run:${error}`);
       }
     }
