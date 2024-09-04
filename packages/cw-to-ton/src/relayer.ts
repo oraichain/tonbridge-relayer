@@ -16,7 +16,7 @@ import {
   BridgeAdapter,
   LightClientMaster,
 } from "@oraichain/ton-bridge-contracts";
-import { createTonWallet } from "./utils";
+import { createTonWallet, retry } from "./utils";
 import { Network } from "@orbs-network/ton-access";
 
 export class RelayerToTonBuilder {
@@ -114,6 +114,12 @@ export class RelayerToTon {
       async (data: Packets & { offset: number }) => {
         const { transferPackets, ackPackets, offset } = data;
         this.logger.info(`CosmosWatcher synced at block: ${offset}`);
+        await retry(async () => {
+          if (this.packetProcessor.lock) {
+            throw new Error("PacketProcessor is locked");
+          }
+          return;
+        });
         if (transferPackets && transferPackets.length > 0) {
           this.logger.info(`Found ${transferPackets.length} TransferPackets`);
           this.packetProcessor.addPendingTransferPackets(transferPackets);

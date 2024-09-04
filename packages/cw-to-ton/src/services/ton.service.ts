@@ -18,6 +18,11 @@ import {
 } from "@ton/ton";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 
+export enum TonSideFee {
+  UPDATE_CLIENT = "3.5",
+  SEND_PACKET = "0.7",
+}
+
 export class TonHandler {
   walletContract: OpenedContract<WalletContractV4>;
   sender: Sender;
@@ -74,6 +79,16 @@ export class TonHandler {
     );
   };
 
+  getSenderTonBalance = async () => {
+    return retry(async () => {
+      try {
+        return this.walletContract.getBalance();
+      } catch (e) {
+        throw new Error(`TonHandler:Error when getSenderTonBalance:${e}`);
+      }
+    });
+  };
+
   async updateLightClient(clientData: LightClientData) {
     const header = deserializeHeader(clientData.header);
     const height = BigInt(header.height);
@@ -88,7 +103,7 @@ export class TonHandler {
               commit: deserializeCommit(clientData.lastCommit),
             },
             {
-              value: toNano("3.5"),
+              value: toNano(TonSideFee.UPDATE_CLIENT),
             }
           );
         } catch (e) {
@@ -143,7 +158,7 @@ export class TonHandler {
                 packet: packet.intoCell(),
                 proofs: getExistenceProofSnakeCell(proofs),
               },
-              { value: toNano("0.7") }
+              { value: toNano(TonSideFee.SEND_PACKET) }
             );
           } catch (e) {
             throw new Error(`TonHandler:Error when sendPacket:${e}`);

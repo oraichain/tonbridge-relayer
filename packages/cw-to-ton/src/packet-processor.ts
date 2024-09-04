@@ -6,10 +6,11 @@ import { CosmosProofHandler } from "@src/services/cosmos.service";
 import { CosmosBlockOffset } from "./models/block-offset";
 import { sleep } from "./utils";
 import { ACK } from "./dtos/packets/AckPacket";
-import { TonHandler } from "./services";
+import { TonHandler, TonSideFee } from "./services";
 import { TransferPacket } from "./dtos/packets/TransferPacket";
 import { Logger } from "winston";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
+import { fromNano, toNano } from "@ton/core";
 
 //@ts-ignore
 BigInt.prototype.toJSON = function () {
@@ -75,6 +76,7 @@ export class PacketProcessor {
     this.logger.info("PacketProcessor:Start running");
     while (true) {
       try {
+        const currentBalancePromise = this.tonHandler.getSenderTonBalance();
         this.lock = true;
         this.logger.debug(
           `PacketProcessor:Before pop all pending packets, ${JSON.stringify(this.getPendingRelayPackets())}`
@@ -96,6 +98,23 @@ export class PacketProcessor {
           ...pendingPackets,
           ...pendingAckSuccessPacket,
         ];
+        const currentBalance = await currentBalancePromise;
+        this.logger.info(
+          `PacketProcessor:Current balance ${fromNano(currentBalance)}`
+        );
+        const feeBatch =
+          toNano(TonSideFee.UPDATE_CLIENT) +
+          toNano(TonSideFee.SEND_PACKET) *
+            BigInt(this.processingPackets.length);
+        if (currentBalance < feeBatch) {
+          this.logger.error(
+            `PacketProcessor:Not enough balance to send packets. Current balance: ${fromNano(currentBalance)}, total fee: ${fromNano(feeBatch)}`
+          );
+          this.addPendingAckPackets(pendingAckSuccessPacket);
+          this.pendingRelayPackets.push(...pendingPackets);
+          await sleep(this.pollingInterval);
+          continue;
+        }
         if (pendingPackets.length === 0) {
           this.addPendingAckPackets(pendingAckSuccessPacket);
           this.logger.info("PacketProcessor:No pending packets");
