@@ -44,8 +44,8 @@ let appLogger: Logger;
         createCwToTonRelayerWithConfig(config.cwToTon, cwToTonLogger),
       ]);
       tonToCwRelayer.relay();
-      cwToTonRelayer.start();
-      cwToTonRelayer.on("error", (error) => {
+      cwToTonRelayer.run();
+      cwToTonRelayer.cosmosWatcher.on("error", (error) => {
         appLogger.error(`cwToTonRelayer`, error);
       });
     });

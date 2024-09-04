@@ -50,8 +50,7 @@ export default class TonToCwRelayer {
             latestMasterchainBlock.last.seqno
           );
         this.logger.info(
-          "Prepare to verify masterchain keyblock: ",
-          parsedBlock.info.seq_no
+          "Prepare to verify masterchain keyblock: " + parsedBlock.info.seq_no
         );
         await this.blockProcessor.verifyMasterchainKeyBlock(rawBlockData);
         await this.blockProcessor.storeKeyBlockNextValSet(

@@ -9,7 +9,6 @@ import { ACK } from "./dtos/packets/AckPacket";
 import { TonHandler } from "./services";
 import { TransferPacket } from "./dtos/packets/TransferPacket";
 import { Logger } from "winston";
-import { getExistenceProofSnakeCell } from "@oraichain/ton-bridge-contracts";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 
 //@ts-ignore
