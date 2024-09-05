@@ -7,6 +7,7 @@ import TonRocks, {
 import { BlockID, LiteClient } from "ton-lite-client";
 import { Functions, liteServer_BlockData } from "ton-lite-client/dist/schema";
 import TonWeb from "tonweb";
+import { Logger } from "winston";
 
 export default class TonBlockProcessor {
   // cache validator set so we don't have to call the contract every few seconds
@@ -15,7 +16,8 @@ export default class TonBlockProcessor {
   constructor(
     protected readonly validator: TonbridgeValidatorInterface,
     protected readonly liteClient: LiteClient,
-    protected readonly tonweb: TonWeb
+    protected readonly tonweb: TonWeb,
+    protected logger: Logger
   ) {}
 
   async queryKeyBlock(masterChainSeqNo: number) {
@@ -76,7 +78,7 @@ export default class TonBlockProcessor {
   queryAllValidators = async () => {
     let validators: UserFriendlyValidator[] = [];
     let startAfter = undefined;
-    let valCheck = new Set();
+    const valCheck = new Set();
 
     while (true) {
       const validatorsTemp = await this.validator.getValidators({
@@ -134,7 +136,7 @@ export default class TonBlockProcessor {
     if (isBlockVerified) return;
 
     const vdata = await this.getMasterchainBlockValSignatures(blockId.seqno);
-    console.log("vdata length: ", vdata.length);
+    this.logger.info("vdata length: " + vdata.length);
     const blockHeader = await this.liteClient.getBlockHeader(blockId);
 
     await this.validator.verifyMasterchainBlockByValidatorSignatures({
@@ -142,7 +144,9 @@ export default class TonBlockProcessor {
       fileHash: blockHeader.id.fileHash.toString("hex"),
       vdata,
     });
-    console.log(`verified masterchain block ${blockId.seqno} successfully`);
+    this.logger.info(
+      `verified masterchain block ${blockId.seqno} successfully`
+    );
   }
 
   async verifyMasterchainKeyBlock(rawBlockData: liteServer_BlockData) {
@@ -164,7 +168,7 @@ export default class TonBlockProcessor {
       fileHash: rawBlockData.id.fileHash.toString("hex"),
       vdata,
     });
-    console.log(
+    this.logger.info(
       `verified masterchain keyblock ${rawBlockData.id.seqno} successfully`
     );
   }
@@ -208,7 +212,7 @@ export default class TonBlockProcessor {
       vdata,
     });
 
-    console.log(
+    this.logger.info(
       `Updated keyblock ${rawBlockData.id.seqno} with new validator set successfully`
     );
   }
@@ -262,7 +266,7 @@ export default class TonBlockProcessor {
       ),
     });
 
-    console.log(
+    this.logger.info(
       `verified shard blocks ${JSON.stringify(
         shardProof.links.map((link) => link.id.seqno)
       )} successfully`

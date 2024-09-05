@@ -1,9 +1,11 @@
+import { Logger } from "winston";
+
 declare global {
+  // eslint-disable-next-line no-var
+  var logger: Logger;
   namespace NodeJS {
     interface ProcessEnv {
       NODE_ENV: string;
-      REDIS_HOST: string;
-      REDIS_PORT: number;
       TON_MNEMONIC: string;
       COSMOS_MNEMONIC: string;
       // SYNC_OPTS
@@ -23,6 +25,10 @@ declare global {
       WASM_VALIDATORS: string;
       TON_BRIDGE: string;
       COSMOS_LIGHT_CLIENT_MASTER: string;
+
+      // APP CONFIG
+      WEBHOOK_URL: string;
+      HEALTH_CHECK_PORT: number;
     }
     interface BigInt {
       toJSON(): string;

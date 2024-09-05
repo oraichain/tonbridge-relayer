@@ -1,28 +1,26 @@
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import { fromBech32 } from "@cosmjs/encoding";
 import { QueryClient } from "@cosmjs/stargate";
 import { Tendermint37Client } from "@cosmjs/tendermint-rpc";
 import { parseWasmEvents } from "@oraichain/oraidex-common";
 import {
   BridgeAdapter,
-  encodeNamespaces,
   getExistenceProofSnakeCell,
   getPacketProofs,
 } from "@oraichain/ton-bridge-contracts";
 import { Network } from "@orbs-network/ton-access";
-import { BRIDGE_WASM_ACTION, CosmwasmBridgeParser } from "@src/services";
+import { TransferPacket } from "@src/dtos/packets/TransferPacket";
+import { BRIDGE_WASM_ACTION } from "@src/services";
 import { createTonWallet, waitSeqno } from "@src/utils";
-import { Address, Cell, toNano } from "@ton/core";
+import { Address, toNano } from "@ton/core";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
 import * as dotenv from "dotenv";
 dotenv.config();
+const argv = process.argv.slice(2);
+const provenHeight = parseInt(argv[0]);
+const packetTx = argv[1];
 
 (async () => {
-  const parser = new CosmwasmBridgeParser(process.env.WASM_BRIDGE);
-  const provenHeight = 30164932;
   const needProvenHeight = provenHeight + 1;
-  const packetTx =
-    "658E2E9F7C921692789668274E1D4ECA62A0737C1DC67316651C0B463F928340";
   const { client, walletContract, key } = await createTonWallet(
     process.env.TON_MNEMONIC,
     process.env.NODE_ENV as Network
@@ -43,18 +41,8 @@ dotenv.config();
     .filter(filterByContractAddress)
     .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.SEND_TO_TON);
   const packetEvent = sendToTonEvents[0];
-  console.log(packetEvent);
-  const transferPacket = parser.transformEventToTransferPacket(
-    BigInt(packetEvent["opcode_packet"]),
-    BigInt(packetEvent["seq"]),
-    BigInt(packetEvent["token_origin"]),
-    BigInt(packetEvent["remote_amount"]),
-    BigInt(packetEvent["timeout_timestamp"]),
-    packetEvent["remote_receiver"],
-    packetEvent["remote_denom"],
-    packetEvent["local_sender"]
-  );
-  const transferBoc = transferPacket.toBoc().toString("hex");
+
+  const transferPacket = TransferPacket.fromRawAttributes(packetEvent);
   const tendermint37 = await Tendermint37Client.connect(
     process.env.COSMOS_RPC_URL
   );
@@ -66,7 +54,7 @@ dotenv.config();
     provenHeight,
     BigInt(packetEvent["seq"])
   );
-  console.log(packetProofs);
+
   const proofs = packetProofs.map((proof) => {
     return ExistenceProof.fromJSON(proof);
   });
@@ -74,7 +62,7 @@ dotenv.config();
     walletContract.sender(key.secretKey),
     {
       provenHeight: needProvenHeight,
-      packet: Cell.fromBoc(Buffer.from(transferBoc, "hex"))[0],
+      packet: transferPacket.intoCell(),
       proofs: getExistenceProofSnakeCell(proofs as any),
     },
     { value: toNano("0.7") }

@@ -1,74 +1,22 @@
-import { Network } from "@orbs-network/ton-access";
-import { Config, TonDefaultConfig } from "./config";
-import { createTonWallet } from "./utils";
-import {
-  BridgeAdapter,
-  LightClientMaster,
-} from "@oraichain/ton-bridge-contracts";
-import { Address } from "@ton/core";
-import { createTonWorker } from "./worker";
-import { relay } from "./relay";
-import { ConnectionOptions, Queue } from "bullmq";
+import { Config } from "./config";
+import { Logger } from "winston";
+import { RelayerToTonBuilder } from "./relayer";
 
-export async function createCwToTonRelayerWithConfig(config: Config) {
-  const connection: ConnectionOptions = {
-    host: config.redisHost,
-    port: config.redisPort,
-    retryStrategy: function (times: number) {
-      return Math.max(Math.min(Math.exp(times), 20000), 1000);
-    },
-  };
-  const tonQueue = new Queue("ton", {
-    connection,
-    defaultJobOptions: {
-      removeOnComplete: {
-        age: 1000 * 60 * 60 * 24 * 14, // 14 days
-        count: 1000,
-      },
-      removeOnFail: {
-        count: 5000,
-      },
-    },
-  });
-  const {
-    walletContract,
-    client: tonClient,
-    key,
-  } = await createTonWallet(
-    config.tonMnemonic,
-    process.env.NODE_ENV as Network,
-    config.tonCenter,
-    config.tonApiKey
-  );
-  const lightClientMaster = LightClientMaster.createFromAddress(
-    Address.parse(TonDefaultConfig.cosmosLightClientMaster)
-  );
-  const bridgeAdapter = BridgeAdapter.createFromAddress(
-    Address.parse(TonDefaultConfig.tonBridge)
-  );
-  const lightClientMasterContract = tonClient.open(lightClientMaster);
-  const bridgeAdapterContract = tonClient.open(bridgeAdapter);
-  // Run workers
-  const tonWorker = createTonWorker(
-    connection,
-    walletContract,
-    walletContract.sender(key.secretKey),
-    tonClient,
-    lightClientMasterContract,
-    bridgeAdapterContract
-  );
-  tonWorker.run();
-  tonWorker.on("completed", async (job) => {
-    console.log("Job completed", job.id);
-  });
-  tonWorker.on("error", (error) => {
-    console.log("Error:", error);
-  });
-  return await relay(tonQueue, config);
+export async function createCwToTonRelayerWithConfig(
+  config: Config,
+  injectLogger: Logger
+) {
+  const RelayerToTon = await new RelayerToTonBuilder()
+    .withConfig(config)
+    .withLogger(injectLogger)
+    .build();
+
+  return RelayerToTon;
 }
 
+export * from "./relayer";
 export * from "./@types";
 export type { Config } from "./config";
 export * from "./utils";
-export * from "./models/cosmwasm/block-offset";
+export * from "./models/block-offset";
 export * from "./worker";

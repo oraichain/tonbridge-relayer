@@ -12,6 +12,7 @@ import {
 import { mnemonicToWalletKey } from "@ton/crypto";
 import { NULL_TON_ADDRESS } from "./constants";
 import { BridgeAdapterPacketOpcodes } from "@oraichain/ton-bridge-contracts";
+import { Tx } from "@oraichain/cosmos-rpc-sync";
 
 export async function waitSeqno(
   walletContract:
@@ -27,8 +28,10 @@ export async function waitSeqno(
       throw new Error("transaction timeout");
     }
     console.log("waiting for transaction to confirm...");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    currentSeqno = await walletContract.getSeqno();
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    currentSeqno = await retry(async () => {
+      return walletContract.getSeqno();
+    });
     attempt++;
   }
   console.log("transaction confirmed!");
@@ -99,8 +102,8 @@ export async function isSuccessVmTx(tx: Transaction) {
 
 export async function retry<T>(
   fn: (...params: any[]) => Promise<T>,
-  retries: number,
-  delay: number,
+  retries: number = 3,
+  delay: number = 3000,
   ...params: any[]
 ): Promise<T> {
   for (let i = 0; i < retries; i++) {
@@ -133,4 +136,8 @@ export function getJobIdFromOpcodePacket(opcodePacket: number, seq: bigint) {
   return opcodePacket == BridgeAdapterPacketOpcodes.sendToTon
     ? `sendToTon-${seq}`
     : `ackSendToCosmos-${seq}`;
+}
+
+export function filterOutSuccessTx(tx: Tx) {
+  return tx.code === 0;
 }

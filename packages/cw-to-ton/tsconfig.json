@@ -4,6 +4,7 @@
         "baseUrl": ".",
         "outDir": "build",
         "declaration": true,
+        "declarationMap": true,
         "rootDir": ".",
         "paths": {
             "@src/*": ["src/*"],

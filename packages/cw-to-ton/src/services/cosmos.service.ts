@@ -4,22 +4,27 @@ import {
   SyncDataOptions,
   Txs,
 } from "@oraichain/cosmos-rpc-sync";
-import { beginCell } from "@ton/core";
-import { Event } from "@cosmjs/stargate";
+import { Event, QueryClient } from "@cosmjs/stargate";
 import { parseWasmEvents } from "@oraichain/oraidex-common";
 import { Log } from "@cosmjs/stargate/build/logs";
 import { EventEmitter } from "stream";
-import { BasicTxInfo } from "@src/@types/common";
 import { Packets, ICosmwasmParser } from "@src/@types/interfaces/cosmwasm";
 import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 import { LightClientData } from "@src/@types/interfaces/cosmwasm/serialized";
-import { checkTonDenom } from "@src/utils";
+import { filterOutSuccessTx, retry } from "@src/utils";
 import {
+  getAckPacketProofs,
+  getPacketProofs,
   serializeCommit,
   serializeHeader,
   serializeValidator,
 } from "@oraichain/ton-bridge-contracts";
-import { fromBech32 } from "@cosmjs/encoding";
+import { TransferPacket } from "@src/dtos/packets/TransferPacket";
+import { AckPacket } from "@src/dtos/packets/AckPacket";
+import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
+import { Config } from "@src/config";
+import { DuckDb } from "@src/duckdb.service";
+import { CosmosBlockOffset } from "@src/models";
 
 export const enum BRIDGE_WASM_ACTION {
   SEND_TO_TON = "send_to_ton",
@@ -34,11 +39,11 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
     const transferPackets = [];
     const ackPackets = [];
     const allBridgeData = txs
-      .filter((tx) => tx.code === 0)
+      .filter(filterOutSuccessTx)
       .flatMap((tx) => {
         const logs: Log[] = JSON.parse(tx.rawLog);
         return logs.map((log) =>
-          this.extractEventToPacket(
+          this.extractEventToPacketDtos(
             log.events,
             tx.hash,
             tx.height,
@@ -49,27 +54,24 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
       .filter(
         (data) => data.transferPackets.length > 0 || data.ackPackets.length > 0
       );
+
     allBridgeData.forEach((data) => {
       transferPackets.push(...data.transferPackets);
       ackPackets.push(...data.ackPackets);
     });
 
     return {
-      transferPackets: transferPackets.toSorted(
-        (a: BasicTxInfo, b: BasicTxInfo) => a.height - b.height
-      ),
-      ackPackets: ackPackets.toSorted(
-        (a: BasicTxInfo, b: BasicTxInfo) => a.height - b.height
-      ),
+      transferPackets: transferPackets,
+      ackPackets: ackPackets,
     };
   }
 
-  extractEventToPacket(
+  extractEventToPacketDtos(
     events: readonly Event[],
     hash: string,
     height: number,
     timestamp: string
-  ) {
+  ): Packets {
     const basicInfo = {
       hash: hash,
       height: height,
@@ -78,90 +80,38 @@ export class CosmwasmBridgeParser implements ICosmwasmParser<Packets> {
     const wasmAttr = parseWasmEvents(events);
     const filterByContractAddress = (attr: Record<string, string>) =>
       attr["_contract_address"] === this.bridgeWasmAddress;
-    // This action come from user need to normalize and submit by relayer.
+
     const sendToTonEvents = wasmAttr
       .filter(filterByContractAddress)
       .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.SEND_TO_TON);
 
-    const sendToCosmosEvents = wasmAttr
+    const ackSendToCosmosEvents = wasmAttr
       .filter(filterByContractAddress)
       .filter((attr) => attr["action"] === BRIDGE_WASM_ACTION.SEND_TO_COSMOS);
 
     const transferPacket = sendToTonEvents.map((attr) => {
       return {
-        data: this.transformEventToTransferPacket(
-          BigInt(attr["opcode_packet"]),
-          BigInt(attr["seq"]),
-          BigInt(attr["token_origin"]),
-          BigInt(attr["remote_amount"]),
-          BigInt(attr["timeout_timestamp"]),
-          attr["remote_receiver"],
-          attr["remote_denom"],
-          attr["local_sender"]
-        ),
+        data: TransferPacket.fromRawAttributes(attr),
         ...basicInfo,
       };
     });
-    const ackPackets = sendToCosmosEvents.map((attr) => {
+
+    const ackPackets = ackSendToCosmosEvents.map((attr) => {
       return {
-        data: this.transformEventToTonAckPacket(
-          BigInt(attr["opcode_packet"]),
-          BigInt(attr["seq"]),
-          Number(attr["ack"])
-        ),
+        data: AckPacket.fromRawAttributes(attr),
         ...basicInfo,
       };
     });
+
     return {
       transferPackets: transferPacket.length > 0 ? transferPacket : [],
       ackPackets: ackPackets.length > 0 ? ackPackets : [],
     };
   }
-
-  transformEventToTonAckPacket(
-    opcode_packet: bigint,
-    seq: bigint,
-    ack: number
-  ) {
-    return beginCell()
-      .storeUint(opcode_packet, 32)
-      .storeUint(seq, 64)
-      .storeUint(ack, 2)
-      .endCell();
-  }
-
-  transformEventToTransferPacket(
-    opcode_packet: bigint,
-    seq: bigint,
-    token_origin: bigint,
-    amount: bigint,
-    timeout_timestamp: bigint,
-    to: string,
-    denom: string,
-    local_sender: string
-  ) {
-    const bech32Address = fromBech32(local_sender).data;
-    return beginCell()
-      .storeUint(opcode_packet, 32)
-      .storeUint(seq, 64)
-      .storeUint(token_origin, 32)
-      .storeUint(amount, 128)
-      .storeUint(timeout_timestamp, 64)
-      .storeAddress(checkTonDenom(to))
-      .storeAddress(checkTonDenom(denom))
-      .storeRef(
-        beginCell()
-          .storeUint(bech32Address.length, 8)
-          .storeBuffer(Buffer.from(bech32Address))
-          .endCell()
-      )
-      .endCell();
-  }
 }
 
 export enum CosmwasmWatcherEvent {
-  PARSED_DATA = "parsed_data",
-  SYNC_DATA = "sync_data",
+  DATA = "data",
 }
 
 export class CosmwasmWatcher<T> extends EventEmitter {
@@ -183,20 +133,145 @@ export class CosmwasmWatcher<T> extends EventEmitter {
     this.syncData.on(CHANNEL.QUERY, async (chunk: Txs) => {
       try {
         const parsedData = this.cosmwasmParser.processChunk(chunk) as Packets;
+        const { offset } = chunk;
         if (
           parsedData &&
           (parsedData.transferPackets.length > 0 ||
             parsedData.ackPackets.length > 0)
         ) {
-          this.emit(CosmwasmWatcherEvent.PARSED_DATA, parsedData);
-        }
-        if (chunk) {
-          this.emit(CosmwasmWatcherEvent.SYNC_DATA, chunk);
+          this.emit(CosmwasmWatcherEvent.DATA, { ...parsedData, offset });
+        } else {
+          this.emit(CosmwasmWatcherEvent.DATA, { offset });
         }
       } catch (e) {
-        console.error(e);
+        this.emit("error", `CosmwasmWatcher:Error when parsing data:${e}`);
       }
     });
+  }
+
+  clearSyncData() {
+    this.running = false;
+    this.syncData.destroy();
+  }
+
+  setSyncData(syncData: SyncData) {
+    this.syncData = syncData;
+  }
+}
+
+export class CosmosProofHandler {
+  cosmosRpcUrl: string;
+  cosmosBridgeAddress: string;
+  queryClient: QueryClient;
+
+  constructor(
+    cosmosRpcUrl: string,
+    cosmosBridgeAddress: string,
+    queryClient: QueryClient
+  ) {
+    this.cosmosRpcUrl = cosmosRpcUrl;
+    this.cosmosBridgeAddress = cosmosBridgeAddress;
+    this.queryClient = queryClient;
+  }
+
+  static async create(
+    cosmosRpcUrl: string,
+    cosmosBridgeAddress: string
+  ): Promise<CosmosProofHandler> {
+    const queryClient = new QueryClient(
+      await Tendermint34Client.connect(cosmosRpcUrl)
+    );
+    return new CosmosProofHandler(
+      cosmosRpcUrl,
+      cosmosBridgeAddress,
+      queryClient
+    );
+  }
+
+  async createUpdateClientData(height: number): Promise<LightClientData> {
+    try {
+      const tendermintClient = await Tendermint34Client.connect(
+        this.cosmosRpcUrl
+      );
+      const [
+        {
+          block: { lastCommit },
+        },
+        {
+          block: { header },
+        },
+        { validators },
+      ] = await retry(() => {
+        return Promise.all([
+          tendermintClient.block(height + 1),
+          tendermintClient.block(height),
+          tendermintClient.validators({
+            height,
+            per_page: 100,
+          }),
+        ]);
+      });
+
+      return {
+        validators: validators.map(serializeValidator),
+        lastCommit: serializeCommit(lastCommit),
+        header: serializeHeader(header),
+      };
+    } catch (e) {
+      throw new Error(
+        `CosmwasmProofHandler:Error when createUpdateClientData:${e}`
+      );
+    }
+  }
+
+  async getPacketProofs(
+    provenHeight: number,
+    seq: bigint
+  ): Promise<ExistenceProof[]> {
+    return retry(
+      async () => {
+        try {
+          const proofs = await getPacketProofs(
+            this.queryClient as any,
+            this.cosmosBridgeAddress,
+            provenHeight,
+            seq
+          );
+          return proofs;
+        } catch (e) {
+          throw new Error(
+            `CosmwasmProofHandler:Error when getPacketProofs:${e}`
+          );
+        }
+      },
+      3,
+      2000
+    ) as Promise<ExistenceProof[]>;
+  }
+
+  async getAckPacketProofs(
+    provenHeight: number,
+    seq: bigint
+  ): Promise<ExistenceProof[]> {
+    return retry(
+      async () => {
+        try {
+          const proofs = await getAckPacketProofs(
+            this.queryClient as any,
+            this.cosmosBridgeAddress,
+            provenHeight,
+            seq
+          );
+          return proofs;
+        } catch (e) {
+          throw new Error(
+            `CosmwasmProofHandler:Error when getAckPacketProofs:${e}`
+          );
+        }
+      },
+      3,
+      2000
+    ) as Promise<ExistenceProof[]>;
   }
 }
 
@@ -204,37 +279,53 @@ export const createUpdateClientData = async (
   rpcUrl: string,
   height: number
 ): Promise<LightClientData> => {
-  const tendermintClient = await Tendermint34Client.connect(rpcUrl);
-  const [
-    {
-      block: { lastCommit },
-    },
-    {
-      block: { header },
-    },
-    { validators },
-  ] = await Promise.all([
-    tendermintClient.block(height + 1),
-    tendermintClient.block(height),
-    tendermintClient.validators({
-      height,
-      per_page: 100,
-    }),
-  ]);
+  try {
+    const tendermintClient = await Tendermint34Client.connect(rpcUrl);
+    const [
+      {
+        block: { lastCommit },
+      },
+      {
+        block: { header },
+      },
+      { validators },
+    ] = await Promise.all([
+      tendermintClient.block(height + 1),
+      tendermintClient.block(height),
+      tendermintClient.validators({
+        height,
+        per_page: 100,
+      }),
+    ]);
 
-  return {
-    validators: validators.map(serializeValidator),
-    lastCommit: serializeCommit(lastCommit),
-    header: serializeHeader(header),
-  };
+    return {
+      validators: validators.map(serializeValidator),
+      lastCommit: serializeCommit(lastCommit),
+      header: serializeHeader(header),
+    };
+  } catch (e) {
+    throw new Error(`Error when createUpdateClientData: ${e}`);
+  }
 };
 
-export const createCosmosBridgeWatcher = (
-  bridgeWasmAddress: string,
-  syncDataOpt: SyncDataOptions
-) => {
+export const createCosmosBridgeWatcher = async (config: Config) => {
+  const duckDb = await DuckDb.getInstance(config.connectionString);
+  const blockOffset = new CosmosBlockOffset(duckDb);
+  await blockOffset.createTable();
+  const offset = await blockOffset.mayLoadBlockOffset(config.syncBlockOffSet);
+  const syncDataOpt: SyncDataOptions = {
+    rpcUrl: config.cosmosRpcUrl,
+    limit: config.syncLimit,
+    maxThreadLevel: config.syncThreads,
+    offset: offset,
+    interval: config.syncInterval,
+    queryTags: [],
+  };
+  if (offset < config.syncBlockOffSet) {
+    syncDataOpt.offset = config.syncBlockOffSet;
+  }
   const syncData = new SyncData(syncDataOpt);
-  const bridgeParser = new CosmwasmBridgeParser(bridgeWasmAddress);
+  const bridgeParser = new CosmwasmBridgeParser(config.wasmBridge);
   const cosmwasmWatcher = new CosmwasmWatcher(syncData, bridgeParser);
   return cosmwasmWatcher;
 };

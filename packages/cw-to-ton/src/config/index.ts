@@ -1,9 +1,7 @@
 import * as dotenv from "dotenv";
-dotenv.config();
 
+dotenv.config();
 export type Config = {
-  redisHost: string;
-  redisPort: number;
   tonMnemonic: string;
   cosmosRpcUrl: string;
   syncBlockOffSet: number;
@@ -21,8 +19,6 @@ export type Config = {
 
 export const loadConfig = (): Config => {
   return {
-    redisHost: process.env.REDIS_HOST || "http://localhost",
-    redisPort: Number(process.env.REDIS_PORT || 6379),
     tonMnemonic: process.env.TON_MNEMONIC || "",
     cosmosRpcUrl: process.env.COSMOS_RPC_URL || "https://rpc.orai.io/",
     syncBlockOffSet: Number(process.env.SYNC_BLOCK_OFFSET || 20000000),
@@ -41,8 +37,6 @@ export const loadConfig = (): Config => {
 };
 
 export const TonDefaultConfig: Config = {
-  redisHost: process.env.REDIS_HOST || "http://localhost",
-  redisPort: Number(process.env.REDIS_PORT || 6379),
   tonMnemonic: process.env.TON_MNEMONIC || "",
   cosmosRpcUrl: process.env.COSMOS_RPC_URL || "https://rpc.orai.io/",
   syncBlockOffSet: Number(process.env.SYNC_BLOCK_OFFSET || 20000000),

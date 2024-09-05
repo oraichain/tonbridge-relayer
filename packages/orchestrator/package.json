@@ -14,7 +14,8 @@
     "@oraichain/tonbridge-relayer-to-cw": "^1.0.9",
     "@oraichain/tonbridge-relayer-to-ton": "^1.1.0",
     "bullmq": "^5.8.7",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "winston-transport-discord": "^1.0.3"
   },
   "devDependencies": {
     "@types/express": "^4",
