@@ -78,6 +78,7 @@ export class RelayerToTonBuilder {
       walletContract.sender(key.secretKey),
       lightClientMaster,
       bridgeAdapter,
+      logger,
       this.config.syncInterval
     );
     const packetProcessor = new PacketProcessor({

@@ -150,13 +150,16 @@ export class PacketProcessor {
           finalUpdateHeight !== latestLightClientHeight
         ) {
           this.logger.info(
-            `PacketProcessor:Update light client to ${finalUpdateHeight}`
+            `PacketProcessor:Updating light client to ${finalUpdateHeight}...`
           );
           const clientData =
             await this.cosmosProofHandler.createUpdateClientData(
               finalUpdateHeight
             );
           await this.tonHandler.updateLightClient(clientData);
+          this.logger.info(
+            `PacketProcessor:Update light client to ${finalUpdateHeight} successfully`
+          );
         } else if (finalUpdateHeight == latestLightClientHeight) {
           heightForQueryProof = latestLightClientHeight - 1;
           this.logger.info(

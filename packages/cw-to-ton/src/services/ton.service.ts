@@ -127,7 +127,7 @@ export class TonHandler {
         );
       }
     });
-    await waitSeqno(this.walletContract, seqno, 15);
+    await this.waitSeqno(seqno, 15);
     while (true) {
       const isDeployed =
         await this.tonClient.isContractDeployed(lightClientAddress);
@@ -191,7 +191,7 @@ export class TonHandler {
         5000
       );
 
-      await waitSeqno(this.walletContract, seqno, 15);
+      await this.waitSeqno(seqno, 15);
     } catch (error) {
       throw new Error(`TonHandler:Error when sendPacket:${error}`);
     }
