@@ -17,6 +17,7 @@ import {
   WalletContractV4,
 } from "@ton/ton";
 import { ExistenceProof } from "cosmjs-types/cosmos/ics23/v1/proofs";
+import { Logger } from "winston";
 
 export enum TonSideFee {
   UPDATE_CLIENT = "3.5",
@@ -30,6 +31,7 @@ export class TonHandler {
   lightClientMaster: OpenedContract<LightClientMaster>;
   bridgeAdapter: OpenedContract<BridgeAdapter>;
   pollInterval: number;
+  logger: Logger;
 
   constructor(
     walletContract: OpenedContract<WalletContractV4>,
@@ -37,6 +39,7 @@ export class TonHandler {
     sender: Sender,
     lightClientMaster: OpenedContract<LightClientMaster>,
     bridgeAdapter: OpenedContract<BridgeAdapter>,
+    logger: Logger,
     pollInterval?: number
   ) {
     this.walletContract = walletContract;
@@ -44,6 +47,7 @@ export class TonHandler {
     this.sender = sender;
     this.lightClientMaster = lightClientMaster;
     this.bridgeAdapter = bridgeAdapter;
+    this.logger = logger;
     this.pollInterval = pollInterval || 5000;
   }
 
@@ -132,6 +136,25 @@ export class TonHandler {
       }
       await sleep(this.pollInterval);
     }
+  }
+
+  async waitSeqno(seqno: number, attempts: number) {
+    let attempt = 0;
+    let currentSeqno = seqno;
+    while (currentSeqno == seqno) {
+      if (attempt > attempts) {
+        throw new Error(
+          `TonHandler:waitSeqno transaction timeout after ${attempts} attempts`
+        );
+      }
+      this.logger.info("TonHandler:waiting for transaction to confirm...");
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      currentSeqno = await retry(async () => {
+        return this.walletContract.getSeqno();
+      });
+      attempt++;
+    }
+    this.logger.info("TonHandler:transaction confirmed!");
   }
 
   async sendPacket(

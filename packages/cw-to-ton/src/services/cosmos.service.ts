@@ -13,6 +13,7 @@ import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 import { LightClientData } from "@src/@types/interfaces/cosmwasm/serialized";
 import { filterOutSuccessTx, retry } from "@src/utils";
 import {
+  getAckPacketProofs,
   getPacketProofs,
   serializeCommit,
   serializeHeader,
@@ -255,7 +256,7 @@ export class CosmosProofHandler {
     return retry(
       async () => {
         try {
-          const proofs = await getPacketProofs(
+          const proofs = await getAckPacketProofs(
             this.queryClient as any,
             this.cosmosBridgeAddress,
             provenHeight,

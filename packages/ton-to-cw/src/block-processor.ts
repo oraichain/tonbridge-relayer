@@ -136,7 +136,7 @@ export default class TonBlockProcessor {
     if (isBlockVerified) return;
 
     const vdata = await this.getMasterchainBlockValSignatures(blockId.seqno);
-    this.logger.info("vdata length: ", vdata.length);
+    this.logger.info("vdata length: " + vdata.length);
     const blockHeader = await this.liteClient.getBlockHeader(blockId);
 
     await this.validator.verifyMasterchainBlockByValidatorSignatures({
