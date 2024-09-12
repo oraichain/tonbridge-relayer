@@ -82,14 +82,14 @@ function validate() {
     liteClient,
     blockProcessor,
     JETTON_BRIDGE,
-    logger
-
-    // "b4c796dc353687b1b571da07ef428e1d90eeac4922c8c2ee19b82a41dd66cac3",
+    logger,
+    "b346c48a06af4f743fa94975c37f3987e84c2aa4f0530f87378457d1d373d18c"
   );
 
   const relayer = new TonToCwRelayer()
     .withBlockProcessor(blockProcessor)
-    .withTxProcessor(txProcessor);
+    .withTxProcessor(txProcessor)
+    .withLogger(logger);
 
   relayer.relay();
 })();
