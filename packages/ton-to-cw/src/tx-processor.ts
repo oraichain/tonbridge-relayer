@@ -10,6 +10,10 @@ import { setTimeout } from "timers/promises";
 
 import { OPCODES } from "./constants";
 import { Logger } from "winston";
+import {
+  liteServer_masterchainInfo,
+  tonNode_blockIdExt,
+} from "ton-lite-client/dist/schema";
 
 export default class TonTxProcessor {
   private limitPerTxQuery = 100; // limit per query
@@ -28,13 +32,14 @@ export default class TonTxProcessor {
     this.initiallatestProcessedTxHash = latestProcessedTxHash;
   }
 
-  private async queryUnprocessedTransactions() {
+  private async queryUnprocessedTransactions(
+    masterchainInfo: tonNode_blockIdExt
+  ) {
     const transactions: TransactionWithBlockId[] = [];
     const jettonAddr = address(this.jettonBridgeAddress);
-    const masterchainInfo = await this.liteClient.getMasterchainInfo();
     const accState = await this.liteClient.getAccountState(
       jettonAddr,
-      masterchainInfo.last
+      masterchainInfo
     );
     let offset = {
       hash: accState.lastTx.hash.toString(16),
@@ -42,9 +47,14 @@ export default class TonTxProcessor {
     };
     while (true) {
       // workaround. Bug of loadTransaction that causes the prev trans hash to be incomplete
-      if (offset.hash.length === 63) {
+      if (offset.hash.length < 64) {
+        this.logger.error(
+          "TonTxProcessor queryUnprocessedTransactions offset hash length < 64: " +
+            offset.hash
+        );
+      }
+      while (offset.hash.length < 64) {
         offset.hash = "0" + offset.hash;
-        this.logger.info("TonTxProcessor:new offset hash: " + offset.hash);
       }
       const rawTxs = await this.liteClient.getAccountTransactions(
         jettonAddr,
@@ -93,9 +103,10 @@ export default class TonTxProcessor {
     return transactions;
   }
 
-  async processTransactions() {
+  async processTransactions(masterchainInfo: tonNode_blockIdExt) {
     try {
-      const transactions = await this.queryUnprocessedTransactions();
+      const transactions =
+        await this.queryUnprocessedTransactions(masterchainInfo);
       this.logger.info(
         "TonTxProcessor:unprocessed transactions: " + transactions.length
       );

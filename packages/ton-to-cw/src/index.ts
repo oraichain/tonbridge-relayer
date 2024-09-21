@@ -16,6 +16,8 @@ import {
   TonbridgeValidatorClient,
 } from "@oraichain/tonbridge-contracts-sdk";
 import { Logger } from "winston";
+import { liteServer_BlockData } from "ton-lite-client/dist/schema";
+import { ParsedBlock } from "@oraichain/tonbridge-utils";
 
 export default class TonToCwRelayer {
   private blockProcessor: TonBlockProcessor;
@@ -43,25 +45,62 @@ export default class TonToCwRelayer {
 
     while (true) {
       try {
-        const latestMasterchainBlock =
-          await this.blockProcessor.getMasterchainInfo();
-        const { rawBlockData, parsedBlock } =
-          await this.blockProcessor.queryKeyBlock(
-            latestMasterchainBlock.last.seqno
-          );
-        this.logger.info(
-          "Prepare to verify masterchain keyblock: " + parsedBlock.info.seq_no
+        const latestMasterchainBlock = await this.getMasterchainInfo();
+        const { rawBlockData, parsedBlock } = await this.queryKeyBlock(
+          latestMasterchainBlock.last.seqno
         );
-        await this.blockProcessor.verifyMasterchainKeyBlock(rawBlockData);
-        await this.blockProcessor.storeKeyBlockNextValSet(
-          rawBlockData,
-          parsedBlock
-        );
-        await this.txProcessor.processTransactions();
+        this.logger.info("Masterchain: " + latestMasterchainBlock.last.seqno);
+        this.logger.info("Keyblock: " + parsedBlock.info.seq_no);
+        await this.verifyMasterchainKeyBlock(rawBlockData);
+        await this.storeKeyBlockNextValSet(rawBlockData, parsedBlock);
+        await this.txProcessor.processTransactions(latestMasterchainBlock.last);
       } catch (error) {
-        this.logger.error("error processing block and tx: ", error);
+        // do nothing since we already catch the error in individual methods
+        // this.logger.error("error processing block and tx: " + error);
       }
       await setTimeout(processInterval);
+    }
+  }
+
+  private async getMasterchainInfo() {
+    try {
+      // throw "getMasterchainInfo";
+      return this.blockProcessor.getMasterchainInfo();
+    } catch (error) {
+      this.logger.error("error getting masterchain info: " + error);
+      throw error;
+    }
+  }
+
+  private async queryKeyBlock(masterChainSeqNo: number) {
+    try {
+      return this.blockProcessor.queryKeyBlock(masterChainSeqNo);
+    } catch (error) {
+      this.logger.error("error queryKeyBlock: " + error);
+      throw error;
+    }
+  }
+
+  private async verifyMasterchainKeyBlock(rawBlockData: liteServer_BlockData) {
+    try {
+      return this.blockProcessor.verifyMasterchainKeyBlock(rawBlockData);
+    } catch (error) {
+      this.logger.error("Error verifyMasterchainKeyBlock: " + error);
+      throw error;
+    }
+  }
+
+  private async storeKeyBlockNextValSet(
+    rawBlockData: liteServer_BlockData,
+    parsedBlock: ParsedBlock
+  ) {
+    try {
+      return this.blockProcessor.storeKeyBlockNextValSet(
+        rawBlockData,
+        parsedBlock
+      );
+    } catch (error) {
+      this.logger.error("Error storeKeyBlockNextValSet: ", error);
     }
   }
 }

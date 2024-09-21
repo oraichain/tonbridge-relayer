@@ -83,7 +83,7 @@ function validate() {
     blockProcessor,
     JETTON_BRIDGE,
     logger,
-    "b346c48a06af4f743fa94975c37f3987e84c2aa4f0530f87378457d1d373d18c"
+    "f2c76b1d5a9bebda03e411e3cd87bfde08762fe263f3b6c3a9c850620dddcff7"
   );
 
   const relayer = new TonToCwRelayer()
