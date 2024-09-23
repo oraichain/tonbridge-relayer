@@ -5,13 +5,26 @@ import TonRocks, {
   ValidatorSignature,
 } from "@oraichain/tonbridge-utils";
 import { BlockID, LiteClient } from "ton-lite-client";
-import { Functions, liteServer_BlockData } from "ton-lite-client/dist/schema";
+import {
+  Functions,
+  liteServer_BlockData,
+  tonNode_blockIdExt,
+} from "ton-lite-client/dist/schema";
 import TonWeb from "tonweb";
 import { Logger } from "winston";
 
 export default class TonBlockProcessor {
   // cache validator set so we don't have to call the contract every few seconds
   private allValidators: UserFriendlyValidator[] = [];
+  private keyBlockCacheData: {
+    parsedBlock: ParsedBlock;
+    rawBlockData: liteServer_BlockData;
+    initialKeyBlockInformation: tonNode_blockIdExt;
+  } = {
+    parsedBlock: null,
+    rawBlockData: null,
+    initialKeyBlockInformation: null,
+  };
 
   constructor(
     protected readonly validator: TonbridgeValidatorInterface,
@@ -21,46 +34,61 @@ export default class TonBlockProcessor {
   ) {}
 
   async queryKeyBlock(masterChainSeqNo: number) {
-    return TonBlockProcessor.queryKeyBlock(masterChainSeqNo, this.liteClient);
+    let initBlockSeqno = masterChainSeqNo;
+    while (true) {
+      this.logger.info("finding key block with seqno: " + initBlockSeqno);
+      const fullBlock = await this.liteClient.getFullBlock(initBlockSeqno);
+      const initialBlockInformation = fullBlock.shards.find(
+        (blockRes) => blockRes.seqno === initBlockSeqno
+      );
+      // get block
+      const block = await this.liteClient.engine.query(
+        Functions.liteServer_getBlock,
+        {
+          kind: "liteServer.getBlock",
+          id: {
+            kind: "tonNode.blockIdExt",
+            ...initialBlockInformation,
+          },
+        }
+      );
+
+      const parsedBlock: ParsedBlock = await this.parseBlock(block);
+      this.logger.info(
+        "is parsed block a keyblock? " + parsedBlock.info.key_block
+      );
+      if (!parsedBlock.info.key_block) {
+        // use read-through cache instead for simplicity
+        if (
+          this.keyBlockCacheData.initialKeyBlockInformation &&
+          this.keyBlockCacheData.initialKeyBlockInformation.seqno ===
+            parsedBlock.info.prev_key_block_seqno
+        ) {
+          this.logger.info("Current keyblock cache hit");
+          // return cache instead
+          return this.keyBlockCacheData;
+        }
+        initBlockSeqno = parsedBlock.info.prev_key_block_seqno;
+        continue;
+      }
+      // cache our data to save bandwidth
+      this.keyBlockCacheData = {
+        parsedBlock,
+        rawBlockData: block,
+        initialKeyBlockInformation: {
+          ...initialBlockInformation,
+          kind: "tonNode.blockIdExt",
+        },
+      };
+      return this.keyBlockCacheData;
+    }
   }
 
   async getMasterchainInfo() {
     return this.liteClient.getMasterchainInfo();
   }
 
-  static queryKeyBlock = async (
-    masterChainSeqNo: number,
-    client: LiteClient
-  ) => {
-    let initBlockSeqno = masterChainSeqNo;
-    while (true) {
-      const fullBlock = await client.getFullBlock(initBlockSeqno);
-      const initialBlockInformation = fullBlock.shards.find(
-        (blockRes) => blockRes.seqno === initBlockSeqno
-      );
-      // get block
-      const block = await client.engine.query(Functions.liteServer_getBlock, {
-        kind: "liteServer.getBlock",
-        id: {
-          kind: "tonNode.blockIdExt",
-          ...initialBlockInformation,
-        },
-      });
-
-      const parsedBlock: ParsedBlock = await this.parseBlock(block);
-      if (!parsedBlock.info.key_block) {
-        initBlockSeqno = parsedBlock.info.prev_key_block_seqno;
-        continue;
-      }
-      return {
-        parsedBlock,
-        rawBlockData: block,
-        initialKeyBlockInformation: initialBlockInformation,
-      };
-    }
-  };
-
-  static async parseBlock(block: liteServer_BlockData): Promise<ParsedBlock> {
+  async parseBlock(block: liteServer_BlockData): Promise<ParsedBlock> {
     const [rootCell] = await TonRocks.types.Cell.fromBoc(
       block.data.toString("hex")
     );
