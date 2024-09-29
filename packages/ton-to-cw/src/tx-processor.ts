@@ -10,10 +10,7 @@ import { setTimeout } from "timers/promises";
 
 import { OPCODES } from "./constants";
 import { Logger } from "winston";
-import {
-  liteServer_masterchainInfo,
-  tonNode_blockIdExt,
-} from "ton-lite-client/dist/schema";
+import { tonNode_blockIdExt } from "ton-lite-client/dist/schema";
 
 export default class TonTxProcessor {
   private limitPerTxQuery = 100; // limit per query
@@ -45,16 +42,23 @@ export default class TonTxProcessor {
       hash: accState.lastTx.hash.toString(16),
       lt: accState.lastTx.lt.toString(10),
     };
+    this.logger.info("latest processed tx hash: " + this.latestProcessedTxHash);
+    if (this.latestProcessedTxHash === offset.hash) return [];
     while (true) {
+      this.logger.info("Current processing tx hash: " + offset.hash);
       // workaround. Bug of loadTransaction that causes the prev trans hash to be incomplete
       if (offset.hash.length < 64) {
         this.logger.error(
           "TonTxProcessor queryUnprocessedTransactions offset hash length < 64: " +
             offset.hash
         );
-      }
-      while (offset.hash.length < 64) {
-        offset.hash = "0" + offset.hash;
+        while (offset.hash.length < 64) {
+          offset.hash = "0" + offset.hash;
+        }
+        this.logger.error(
+          "TonTxProcessor queryUnprocessedTransactions new offset hash: " +
+            offset.hash
+        );
       }
       const rawTxs = await this.liteClient.getAccountTransactions(
         jettonAddr,
@@ -82,12 +86,11 @@ export default class TonTxProcessor {
       if (indexOf === -1) {
         transactions.push(...txs);
         // increase offset and continue querying txs until we find our oldest transaction that we can remember
+        const oldestTx = txs[txs.length - 1].tx;
         offset = {
-          hash: txs[txs.length - 1].tx.prevTransactionHash.toString(16),
-          lt: txs[txs.length - 1].tx.prevTransactionLt.toString(10),
+          hash: oldestTx.prevTransactionHash.toString(16),
+          lt: oldestTx.prevTransactionLt.toString(10),
         };
-        this.logger.info("TonTxProcessor offset: " + offset);
-        // this.logger.info("TonTxProcessortxhash bigint: ", txs[txs.length - 1].tx.prevTransactionHash)
         await setTimeout(2000);
         continue;
       } else {
